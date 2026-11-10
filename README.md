@@ -177,10 +177,10 @@ docs/          architecture, testing, deployment, Round 2 submission text
 
 | Name | Role |
 |---|---|
-| Bharat **[surname]** (team lead) | **[role]** |
-| **[Member 2]** | **[role]** |
-| **[Member 3]** | **[role]** |
-| **[Member 4]** | **[role]** |
+| Bharat **[Saini]** (team lead) | **[Backend]** |
+| **[chitransh Nagar]** | **[AI ML]** |
+| **[Bhavishay Jhalani]** | **[Forntend]** |
+| **[Dhaksh Sharma]** | **[Research]** |
 
 ## License
 
