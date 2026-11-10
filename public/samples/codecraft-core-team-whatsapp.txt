@@ -1,0 +1,13 @@
+14/10/2026, 9:41 pm - Riya Sharma: Sponsor demo with ByteForge is on 12 Dec, let's plan backwards from that.
+14/10/2026, 9:43 pm - Kabir Khan: ok
+14/10/2026, 9:50 pm - Riya Sharma: Kabir will handle the leaderboard and the admin dashboard.
+15/10/2026, 11:02 am - Neha Iyer: The Razorpay account is registered under the club treasurer, so any KYC or refund needs me.
+15/10/2026, 11:05 am - Riya Sharma: Payment gateway keys are in the club's password manager, Neha has admin access.
+17/10/2026, 8:15 pm - Riya Sharma: Firebase free plan might run out in January if registrations cross 3k.
+18/10/2026, 10:20 pm - Riya Sharma: I'll handle the webhook until I leave, after that someone needs to own it.
+19/10/2026, 4:30 pm - Dev Patel: Posters are done. The Instagram account login is with Riya.
+21/10/2026, 6:05 pm - Kabir Khan: ByteForge mailed, sponsor demo moved to 20 Dec.
+21/10/2026, 6:07 pm - Riya Sharma: We decided the certificate generator will use the college's official template.
+24/10/2026, 7:12 pm - Kabir Khan: Got the domain renewal reminder for techfest-codecraft.in, not sure who handles that.
+25/10/2026, 9:00 am - Riya Sharma: Arjun, ping Prof. Rao before changing anything in the payment flow, she approves all money matters.
+25/10/2026, 9:01 am - Arjun Mehta: Got it 👍

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: baton
+    runtime: node
+    plan: free
+    buildCommand: echo "prebuilt: public and dist are committed"
+    startCommand: node dist/server.mjs
+    healthCheckPath: /api/health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false

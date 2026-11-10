@@ -1,0 +1,9 @@
+node_modules/
+.data/
+.data-test/
+tests/screenshots/
+.env
+.env.local
+.vercel
+*.log
+.DS_Store

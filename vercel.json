@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "echo prebuilt: no install needed",
+  "buildCommand": "echo prebuilt: public and dist are committed",
+  "outputDirectory": "public",
+  "functions": {
+    "api/index.mjs": { "maxDuration": 60 }
+  },
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/index?__path=:path*" },
+    { "source": "/((?!api/|assets/|samples/|favicon\\.svg).*)", "destination": "/index.html" }
+  ]
+}
