@@ -8,11 +8,23 @@ Built for the **CodersInPune Hackathon 2026** (HackWithPune) — challenge *Prev
 
 | | |
 |---|---|
-| Live demo | **[add your deployed URL here]** |
+| Live demo | https://baton-henna.vercel.app |
 | Try it | Open the link → **Try the sample project** → follow the yellow guide on each step (about 3 minutes) |
 | Sign-in | None needed. Demo data is synthetic. |
 
 ---
+
+## Round 3: the three promised improvements (implemented)
+
+| # | Promised in Round 2 | What now works | Where |
+|---|---|---|---|
+| 1 | **Live connectors with continuous capture** | `/baton decision · risk · task · owner · note` from Discord (and Slack), and a GitHub webhook that logs issue assignments, merged pull requests and `Decision:` / `Risk:` lines in issues, comments and commits. Every call is verified by signature (Ed25519 for Discord, HMAC-SHA256 for GitHub and Slack), secrets are redacted on arrival, and each item carries an access tag. Items land in a workspace **Capture inbox** and, once added to a project, pass the same permission gate, extraction and quote check as every other source. | Workspace → Live connectors / Capture inbox; Sources → Live capture |
+| 2 | **Ask Baton — grounded Q&A** | A question box on the successor's handover. Answers are built only from the approved claims in that handover, each sentence carries numbered citations that open the evidence, and code checks every model sentence against the facts it cites (unsupported sentences are removed). When nothing approved covers the question Baton answers **"Not in the handover"** and the question is passed to the reviewer. Because the answer is built from the role-filtered package, withheld material cannot appear. Works with the AI model or, without a key, by showing the matching approved facts. | Successor view → Ask Baton |
+| 3 | **Real accounts and organisation access control** | Sign-up and sign-in, workspaces, invitation links, roles per person (Member / Lead / Owner). Workspace data lives in Postgres with **Row-Level Security** (`supabase/schema.sql`, 48 policy checks on a real PostgreSQL). Share links are signed, can expire, can be revoked, and count opens. Publishing records the signed-in account as approver; acknowledgements, flags and questions carry the account's name. | Sign in → Workspace; Handover step → Signed share links |
+
+Setup for connectors and accounts: [docs/CONNECTORS.md](docs/CONNECTORS.md) and [docs/DEPLOY.md](docs/DEPLOY.md). Submission text: [docs/ROUND3_SUBMISSION.md](docs/ROUND3_SUBMISSION.md).
+
+The sample project still works with **no sign-in**, so the three-minute judge path below is unchanged.
 
 ## What a judge can do in three minutes
 
@@ -72,7 +84,7 @@ flowchart LR
 
 More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Features (implemented in Round 2)
+## Features from Round 2
 
 | Area | Implemented |
 |---|---|
@@ -114,6 +126,9 @@ Full steps, Render alternative and troubleshooting: [docs/DEPLOY.md](docs/DEPLOY
 | AI provider contracts | `npm test` | 5 tests: Gemini, Anthropic and OpenAI-compatible request/response shapes, error messages |
 | Browser end-to-end | `node tests/e2e.mjs` | 27 checks over the full judge journey in Chromium, including leak checks on the successor page, share link in a fresh browser, upload flow, role change, flags |
 | AI path over HTTP | `node tests/e2e-ai.mjs` | 7 checks with a mock OpenAI-compatible model server |
+| Round 3 unit + API | `npm test` | 14 tests: Ask Baton grounding, capture parsing, signatures, Supabase adapter, the whole workspace API |
+| Row-Level Security | `npm run test:rls` | 48 checks of `supabase/schema.sql` run as real database roles on PostgreSQL |
+| Round 3 browser journey | `node tests/e2e-round3.mjs` | 29 checks: account, workspace, invite, signed Discord and GitHub calls, inbox, publish, share link, Ask Baton, revoke, Member view |
 
 Results and failure cases: [docs/TESTING.md](docs/TESTING.md).
 
@@ -146,18 +161,14 @@ Results and failure cases: [docs/TESTING.md](docs/TESTING.md).
 
 ## Known limitations (honest)
 
-- Identity is chosen per step in this demo (leaver, reviewer, successor); there are no accounts yet.
-- The rules engine is pattern-based and English-only; it misses implicit statements an AI model would catch.
-- Conflict detection covers owners and dates, not every kind of disagreement.
-- Large chat exports must be split under 4 MB per file (Vercel request limit).
-- Scanned PDFs without a text layer are rejected (no OCR).
-- Without Upstash, share links opened on another device depend on the serverless instance and may not persist.
-
-## Round 3 commitments
-
-1. **Live connectors with continuous capture** — Slack/Discord bot (`/baton decision …`) and GitHub webhook that log decisions, risks and ownership changes as they happen, with scoped read-only OAuth instead of manual exports.
-2. **Ask Baton — grounded successor Q&A** — the successor asks questions in plain language; answers come only from approved claims and their cited chunks, always with citations, and Baton refuses when no evidence exists. Role permissions apply to every answer.
-3. **Real accounts and organisation access control** — sign-in, invitations and per-person roles; server-side workspaces with Postgres Row-Level Security; signed share links with expiry and revocation; acknowledgements tied to real identities.
+- Raw sources tagged **Private** never leave the author's browser, so they are not available on another device.
+- Connectors use signed slash commands and webhooks, not OAuth: the bot receives only `/baton` commands, never the channel history. Reading past history still needs an export or the GitHub import.
+- The Slack command uses the same code path and is covered by automated tests with signed requests, but was not run against a live Slack workspace.
+- Without Supabase variables the app uses built-in accounts (scrypt password hashes) in the package store; the same role checks apply, but Row-Level Security applies only in Supabase mode.
+- There is no password-reset email and no single sign-on.
+- The rules engine is pattern-based and English-only; conflict detection covers owners and dates.
+- Files are limited to 4 MB each on Vercel; scanned PDFs without a text layer are rejected (no OCR).
+- Ask Baton answers only from the published handover, not from unapproved or withheld material — by design.
 
 ## Project structure
 
@@ -177,10 +188,10 @@ docs/          architecture, testing, deployment, Round 2 submission text
 
 | Name | Role |
 |---|---|
-| Bharat **[surname]** (team lead) | **[role]** |
-| **[Member 2]** | **[role]** |
-| **[Member 3]** | **[role]** |
-| **[Member 4]** | **[role]** |
+| Bharat Saini (team lead) | Backend |
+| Chitransh Nagar | AI / ML |
+| Bhavishay Jhalani | Frontend |
+| Dhaksh Sharma | Research |
 
 ## License
 

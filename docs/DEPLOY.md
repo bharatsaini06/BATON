@@ -20,6 +20,12 @@ The repository contains the built app (`public/`) and server (`dist/`), so hosti
 4. **Durable share links (recommended):** in Vercel open *Storage → Create → Upstash (Redis)* (free plan), connect it to the project, then redeploy. Baton reads `KV_REST_API_URL` / `KV_REST_API_TOKEN` or `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`. `/api/health` then shows `"storage": {"mode": "upstash", "durable": true}`.
 5. **Check like a judge:** open the deployment URL in a private/incognito window → *Try the sample project* → run through to the successor view. Open `/api/health` to confirm the AI and storage settings.
 
+### Round 3 additions (accounts, connectors, signed links)
+
+6. **Accounts with Row-Level Security:** create a Supabase project, run `supabase/schema.sql`, and add `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` and `SESSION_SECRET`. 
+7. **Discord:** add `DISCORD_APP_ID`, `DISCORD_PUBLIC_KEY`, `DISCORD_BOT_TOKEN`.
+8. Redeploy, then follow the step-by-step guide and checklist in [CONNECTORS.md](CONNECTORS.md).
+
 ## Option B — Render (free web service)
 
 1. Push to GitHub as above.

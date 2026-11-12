@@ -97,11 +97,16 @@ export function getProject(id: string): Project | undefined {
   return state.projects.get(id);
 }
 
-export async function saveProject(p: Project): Promise<Project> {
+/** Called after every local save; the workspace layer uses it to sync projects that belong to a workspace. */
+let afterSave: ((p: Project) => void) | null = null;
+export function onProjectSaved(fn: (p: Project) => void) { afterSave = fn; }
+
+export async function saveProject(p: Project, opts: { sync?: boolean } = {}): Promise<Project> {
   const next = { ...p, updatedAt: new Date().toISOString() };
   state.projects = new Map(state.projects).set(next.id, next);
   emit();
   await put("projects", next);
+  if (opts.sync !== false && next.orgId) afterSave?.(next);
   return next;
 }
 
@@ -126,6 +131,14 @@ export async function savePackage(pkg: SharePackage) {
   state.packages = new Map(state.packages).set(pkg.id, pkg);
   emit();
   await put("packages", pkg);
+}
+
+export async function forgetPackage(id: string) {
+  const m = new Map(state.packages);
+  m.delete(id);
+  state.packages = m;
+  emit();
+  await del("packages", id);
 }
 
 export function getPackage(id: string): SharePackage | undefined {

@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { LuCircleCheck, LuFlag, LuEyeOff, LuShieldCheck, LuTriangleAlert, LuDownload, LuSquareCheck, LuSquare, LuHistory, LuUsers, LuListTodo, LuTriangle, LuRoute, LuGauge } from "react-icons/lu";
+import { LuCircleCheck, LuFlag, LuEyeOff, LuShieldCheck, LuTriangleAlert, LuDownload, LuSquareCheck, LuSquare, LuHistory, LuUsers, LuListTodo, LuTriangle, LuRoute, LuGauge, LuSparkles, LuSend, LuLink, LuLock, LuCircleHelp } from "react-icons/lu";
 import type { Claim, SectionKey, SharePackage } from "../../core/types";
 import { SECTION_LABEL, SECTION_OF } from "../../core/types";
 import { packageMarkdown } from "../../core/plan";
 import { formatDate, formatDateTime } from "../../core/text";
-import { api, ApiError } from "../api";
+import { api, ApiError, type PackageAccess } from "../api";
+import type { AskResult } from "../../core/ask";
+import { useSession } from "../session";
 import { getPackage, savePackage, packagesFor, usePref, useStore } from "../store";
-import { navigate } from "../router";
+import { navigate, Link } from "../router";
 import { ClaimCard, EvidenceDrawer } from "../components/claim";
 import { Button, Callout, Card, Modal, Spinner, StatusBadge, useToast, cx } from "../ui";
 import { download } from "../files";
@@ -29,35 +31,51 @@ export function SuccessorPage({ id }: { id: string }) {
   const [flagging, setFlagging] = useState<Claim | null>(null);
   const [note, setNote] = useState("");
 
+  const [access, setAccess] = useState<PackageAccess | null>(null);
+  const [needSignIn, setNeedSignIn] = useState(false);
+  const { user } = useSession();
+  const k = useMemo(() => new URLSearchParams(location.search).get("k"), [id]);
+
   useEffect(() => {
     if (!ready) return;
+    setError(null); setNeedSignIn(false);
     const local = getPackage(id);
-    if (local) { setPkg(local); return; }
-    api.share(id).then((r) => { setPkg(r.package); void savePackage(r.package); }).catch((e: ApiError) => setError(e.status === 404 ? "This handover was not found. It may have been published in another browser on a server without shared storage, or the link is incomplete." : e.message));
-  }, [id, ready]);
+    // A local-only (demo) handover opens from this browser. A workspace handover is always checked
+    // with the server, so a revoked link, an expired link or a changed role takes effect at once.
+    if (local && !local.orgId && !k) { setPkg(local); setAccess(null); return; }
+    api.share(id, k).then((r) => { setPkg(r.package); setAccess(r.access); if (r.access.kind !== "link") void savePackage(r.package); })
+      .catch((e: ApiError) => {
+        if (e.status === 404 && local && !local.orgId) { setPkg(local); return; }
+        setPkg(null);
+        setNeedSignIn(e.status === 401);
+        setError(e.status === 404 ? "This handover was not found. It may have been published in another browser on a server without shared storage, or the link is incomplete." : e.message);
+      });
+  }, [id, ready, k, user?.id]);
 
   const chunks = useMemo(() => new Map((pkg?.chunks || []).map((c) => [c.id, c])), [pkg]);
   const sources = useMemo(() => new Map((pkg?.sources || []).map((s) => [s.id, s])), [pkg]);
 
-  if (error) return <div className="page narrow center-page"><h1>Handover not available</h1><p className="muted">{error}</p></div>;
+  if (error) return <div className="page narrow center-page"><h1>Handover not available</h1><p className="muted">{error}</p>{needSignIn && <Link to={`/account?next=${encodeURIComponent(location.pathname)}`} className="btn btn-primary btn-md"><span>Sign in</span></Link>}</div>;
   if (!pkg) return <div className="page"><Spinner label="Loading handover…" /></div>;
 
   const persist = async (next: SharePackage, remote: () => Promise<{ package: SharePackage }>) => {
     setPkg(next);
-    await savePackage(next);
+    if (access?.kind !== "link") await savePackage(next);
     try { const r = await remote(); setPkg({ ...next, acknowledgements: { ...r.package.acknowledgements, ...next.acknowledgements }, flags: next.flags }); } catch { /* not stored on server: kept in this browser */ }
   };
 
+  // In a workspace the name comes from the account; with a share link or in the demo it is the named successor.
+  const me = access?.kind === "member" && user ? user.name : pkg.successor;
   const ack = async (s: SectionKey) => {
-    const next = { ...pkg, acknowledgements: { ...pkg.acknowledgements, [s]: { by: pkg.successor, at: new Date().toISOString() } } };
-    await persist(next, () => api.ack(pkg.id, s, pkg.successor));
+    const next = { ...pkg, acknowledgements: { ...pkg.acknowledgements, [s]: { by: me, at: new Date().toISOString() } } };
+    await persist(next, () => api.ack(pkg.id, s, me, k));
     toast("success", `${SECTION_LABEL[s]} acknowledged`);
   };
 
   const flag = async () => {
     if (!flagging || !note.trim()) return;
-    const f = { claimId: flagging.id, note: note.trim(), by: pkg.successor, at: new Date().toISOString() };
-    await persist({ ...pkg, flags: [...pkg.flags, f] }, () => api.flag(pkg.id, f.claimId, f.note, f.by));
+    const f = { claimId: flagging.id, note: note.trim(), by: me, at: new Date().toISOString() };
+    await persist({ ...pkg, flags: [...pkg.flags, f] }, () => api.flag(pkg.id, f.claimId, f.note, f.by, k));
     setFlagging(null);
     setNote("");
     toast("success", "Flag sent to the reviewer");
@@ -92,11 +110,19 @@ export function SuccessorPage({ id }: { id: string }) {
               </select>
             ) : <span className="hero-badge">Version {pkg.version}</span>}
           </div>
+          {access && access.kind !== "open" && (
+            <div className="access-bar">
+              {access.kind === "link"
+                ? <><LuLink aria-hidden /> Opened with a signed share link · {access.expiresAt ? `expires ${formatDateTime(access.expiresAt)}` : "no expiry"} · the reviewer can revoke it</>
+                : <><LuLock aria-hidden /> Opened as <b>{user?.name}</b> · workspace role: {access.role === "owner" ? "Owner" : access.role === "lead" ? "Lead" : "Member"}</>}
+            </div>
+          )}
         </div>
       </div>
 
       <div className="succ-body">
         <nav className="succ-nav" aria-label="Sections">
+          <a href="#sec-ask"><LuSparkles aria-hidden /> <span>Ask Baton</span></a>
           {SECTIONS.map((s) => (
             <a key={s.key} href={`#sec-${s.key}`} className={cx(pkg.acknowledgements[s.key] && "acked")}>
               <s.icon aria-hidden /> <span>{SECTION_LABEL[s.key]}</span>
@@ -107,6 +133,7 @@ export function SuccessorPage({ id }: { id: string }) {
         </nav>
 
         <div className="succ-content">
+          <AskBaton pkg={pkg} link={k} by={me} onClaim={(cid) => { const c = claims.find((x) => x.id === cid); if (c) setEv(c); }} />
           {pkg.changes && (pkg.changes.added.length + pkg.changes.removed.length + pkg.changes.edited.length > 0) && (
             <Callout tone="info" title={`What changed since version ${pkg.changes.fromVersion}`}>
               {pkg.changes.added.length} added · {pkg.changes.edited.length} edited · {pkg.changes.removed.length} removed
@@ -241,5 +268,64 @@ function PlanView({ pkg, onClaim }: { pkg: SharePackage; onClaim: (id: string) =
         </div>
       ))}
     </div>
+  );
+}
+
+const ASK_EXAMPLES = ["What should I do first?", "Who owns what?", "What deadlines are coming up?", "What are the biggest risks?"];
+
+/** Ask Baton: answers come only from the approved claims in this handover, each sentence cited. */
+function AskBaton({ pkg, link, by, onClaim }: { pkg: SharePackage; link: string | null; by: string; onClaim: (id: string) => void }) {
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [thread, setThread] = useState<{ q: string; a?: AskResult; error?: string }[]>([]);
+  const byId = useMemo(() => new Map(pkg.claims.map((c) => [c.id, c])), [pkg]);
+
+  const send = async (question: string) => {
+    const text = question.trim();
+    if (text.length < 3 || busy) return;
+    setBusy(true); setQ("");
+    try {
+      // A handover that lives only in this browser is sent along, so the server can answer from it.
+      const r = await api.ask({ id: pkg.id, question: text, by, package: pkg.orgId ? undefined : pkg }, link);
+      setThread((t) => [{ q: text, a: r.answer }, ...t]);
+    } catch (e) {
+      setThread((t) => [{ q: text, error: (e as Error).message }, ...t]);
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <section id="sec-ask" className="ask" aria-label="Ask Baton">
+      <div className="ask-head"><LuSparkles aria-hidden /><h2>Ask Baton</h2></div>
+      <p className="muted small">Ask about this project in your own words. Answers use only the facts approved in this handover, each with its source. If the handover does not cover it, Baton says so and the reviewer sees your question.</p>
+      <form className="ask-form" onSubmit={(e) => { e.preventDefault(); void send(q); }}>
+        <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. Who do I contact about the venue?" maxLength={300} aria-label="Your question" />
+        <Button type="submit" variant="primary" icon={<LuSend />} loading={busy} disabled={q.trim().length < 3}>Ask</Button>
+      </form>
+      {!thread.length && <div className="ask-suggest">{ASK_EXAMPLES.map((x) => <button key={x} type="button" onClick={() => void send(x)}>{x}</button>)}</div>}
+      {thread.length > 0 && (
+        <div className="ask-thread" aria-live="polite">
+          {thread.map((t, i) => (
+            <div key={thread.length - i}>
+              <div className="ask-q">{t.q}</div>
+              {t.error ? <div className="ask-a ask-err small">{t.error}</div> : t.a && t.a.found ? (
+                <div className="ask-a">
+                  {t.a.sentences.map((s, j) => (
+                    <div key={j}>{s.text}{s.claimIds.filter((cid) => byId.has(cid)).map((cid, n) => <button key={cid} type="button" className="ask-cite" title={byId.get(cid)!.statement} onClick={() => onClaim(cid)} aria-label={`Source ${n + 1}`}>{n + 1}</button>)}</div>
+                  ))}
+                  <div className="muted xsmall">{t.a.engine === "ai" ? "Worded by the AI model; every sentence was checked against the cited facts." : "Approved facts shown as written."}{t.a.dropped ? ` ${t.a.dropped} unsupported sentence${t.a.dropped === 1 ? " was" : "s were"} removed.` : ""}{t.a.note ? ` ${t.a.note}` : ""} Click a number to see the source.</div>
+                </div>
+              ) : t.a ? (
+                <div className="ask-a ask-none">
+                  <div><LuCircleHelp aria-hidden /> <b>Not in the handover.</b> Nothing approved answers this, so Baton will not guess. Your question was passed to the reviewer.</div>
+                  {t.a.related.filter((cid) => byId.has(cid)).length > 0 && (
+                    <div className="ask-related"><span className="muted xsmall">Closest approved facts:</span>{t.a.related.filter((cid) => byId.has(cid)).map((cid) => <button key={cid} type="button" className="link-btn" style={{ textAlign: "left" }} onClick={() => onClaim(cid)}>{byId.get(cid)!.statement}</button>)}</div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

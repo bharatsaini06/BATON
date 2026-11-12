@@ -172,8 +172,10 @@ try {
   await page.goto(`${BASE}/p/${pid}/setup`);
   await page.getByRole("radio", { name: "Lead" }).click();
   await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByText(/successor role changed/).waitFor();
+  await page.waitForTimeout(300); // let the browser database write finish before reloading
   await page.goto(`${BASE}/p/${pid}/reconstruct`);
-  ok(await page.getByText("Results are out of date").isVisible(), "role change marks results stale");
+  ok(await page.getByText("Results are out of date").waitFor({ timeout: 8000 }).then(() => true, () => false), "role change marks results stale");
   const withheld = await page.locator(".gate-box").innerText();
   ok(/Withheld \(1\)/.test(withheld), "as Lead only the Private source is withheld");
 

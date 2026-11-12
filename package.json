@@ -1,8 +1,8 @@
 {
   "name": "baton-handover",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Baton — evidence-checked, permission-safe project handovers. CodersInPune Hackathon 2026, Team ATHRAV.",
+  "description": "Baton \u2014 evidence-checked, permission-safe project handovers. CodersInPune Hackathon 2026, Team ATHRAV.",
   "type": "module",
   "license": "MIT",
   "engines": {
@@ -12,8 +12,9 @@
     "start": "node dist/server.mjs",
     "build": "node scripts/build.mjs",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.client.json",
-    "test": "tsx --test tests/core.test.ts tests/providers.test.ts",
-    "test:e2e": "node tests/e2e.mjs && node tests/e2e-ai.mjs"
+    "test": "tsx --test tests/core.test.ts tests/providers.test.ts tests/round3.test.ts",
+    "test:e2e": "node tests/e2e.mjs && node tests/e2e-ai.mjs && node tests/e2e-round3.mjs",
+    "test:rls": "bash tests/rls.sh"
   },
   "devDependencies": {
     "@types/node": "26.6.3",

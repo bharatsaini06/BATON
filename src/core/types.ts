@@ -175,7 +175,37 @@ export interface SharePackage {
   changes?: { added: string[]; removed: string[]; edited: string[]; fromVersion: number };
   acknowledgements: Partial<Record<SectionKey, { by: string; at: string }>>;
   flags: { claimId: string; note: string; by: string; at: string }[];
+  /** Round 3: questions asked through Ask Baton that the approved handover could not answer. */
+  questions?: AskedQuestion[];
+  /** Round 3: set when the package belongs to a workspace (accounts + signed links apply). */
+  orgId?: string;
 }
+
+export interface AskedQuestion { id: string; question: string; by: string; at: string; found: boolean }
+
+/** A knowledge item captured live by a connector (Discord, Slack, GitHub webhook). */
+export type CaptureSource = "discord" | "slack" | "github";
+export interface CaptureEvent {
+  id: string;
+  orgId: string;
+  connectorId: string;
+  source: CaptureSource;
+  kind: LogKind;
+  text: string;            // already redacted
+  why?: string;
+  owner?: string;
+  due?: string;
+  author: string;
+  access: AccessTag;
+  url?: string;
+  ref?: string;            // delivery / interaction id (used to ignore duplicates)
+  projectId?: string;
+  status: "new" | "added" | "dismissed";
+  at: string;
+}
+
+export type OrgRole = "owner" | "lead" | "member";
+export const ORG_ROLE_LABEL: Record<OrgRole, string> = { owner: "Owner", lead: "Lead", member: "Member" };
 
 export interface Project {
   id: string;
@@ -198,6 +228,8 @@ export interface Project {
   versions: { version: number; packageId: string; approvedAt: string; approvedBy: string; claimCount: number }[];
   audit: AuditEvent[];
   stage: "setup" | "sources" | "generated" | "interviewed" | "reviewed" | "published";
+  /** Round 3: workspace this project is saved to. Private sources never leave the browser. */
+  orgId?: string;
 }
 
 export const CLAIM_TYPE_LABEL: Record<ClaimType, string> = {

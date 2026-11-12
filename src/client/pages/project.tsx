@@ -6,6 +6,8 @@ import { sourcesFingerprint } from "../../core/permissions";
 import { useStore, updateProject } from "../store";
 import { Link, navigate, useQuery } from "../router";
 import { Meter, Spinner, cx } from "../ui";
+import { WorkspaceChip } from "../components/workspace-chip";
+import { useSession } from "../session";
 import { SetupStep } from "../steps/setup";
 import { SourcesStep } from "../steps/sources";
 import { ReconstructStep } from "../steps/reconstruct";
@@ -59,6 +61,7 @@ export function ProjectPage({ id, step }: { id: string; step: string }) {
   const { ready, projects } = useStore();
   const q = useQuery();
   const [tourOff, setTourOff] = useState(false);
+  const { user } = useSession();
   const project = projects.get(id);
   if (!ready) return <div className="page"><Spinner label="Loading project…" /></div>;
   if (!project)
@@ -87,12 +90,15 @@ export function ProjectPage({ id, step }: { id: string; step: string }) {
               {project.leaver ? <><b>{project.leaver}</b> → <b>{project.successor || "?"}</b> ({project.successorRole === "lead" ? "Lead" : "Member"}) · reviewer <b>{project.reviewer || "?"}</b></> : "Set up who is leaving and who takes over."}
             </div>
           </div>
+          <div className="head-right">
+          <WorkspaceChip project={project} />
           {project.claims.length > 0 && (
             <div className="head-meter">
               <Meter value={r.score} size={56} label="Handover readiness" />
               <div><div className="small strong">Readiness</div><div className="muted xsmall">{r.label}</div></div>
             </div>
           )}
+          </div>
         </div>
 
         <nav className="stepper" aria-label="Handover steps">
@@ -119,7 +125,7 @@ export function ProjectPage({ id, step }: { id: string; step: string }) {
           </div>
         )}
         {cur && key !== "reconstruct" && (
-          <div className="acting">Acting as <b>{cur.actor(project)}</b>{key === "review" || key === "publish" ? " (reviewer)" : key === "interview" ? " (leaver)" : ""}<span className="muted"> · demo mode: identity is chosen per step</span></div>
+          <div className="acting">Acting as <b>{cur.actor(project)}</b>{key === "review" || key === "publish" ? " (reviewer)" : key === "interview" ? " (leaver)" : ""}<span className="muted">{project.orgId && user ? <> · signed in as <b>{user.name}</b>; publishing records your account as the approver</> : " · demo mode: identity is chosen per step"}</span></div>
         )}
 
         {key === "setup" && <SetupStep />}

@@ -61,3 +61,33 @@ Claim    id · type · statement · subject · field · value · basis · status
 Package  id · version · role · approvedBy/At · claims · cited chunks · plan · timeline
          hiddenSources · excluded · changes · acknowledgements · flags
 ```
+
+## Round 3 additions
+
+**Accounts and access control.** `server/db.ts` has two interchangeable backends. With Supabase configured, sign-up and sign-in go to Supabase Auth and every table call for a signed-in person is sent to PostgREST with that person's token, so the Row-Level Security policies in `supabase/schema.sql` decide the result. The service key is used only after the server has verified something itself: a webhook signature, an invitation token or a signed share link. Without Supabase the same tables are kept in the package store with scrypt password hashes and HMAC session tokens. The route code and role checks (`member < lead < owner`) are the same in both modes.
+
+| Role | Can |
+|---|---|
+| Member | open handovers published for Members; see Member-tagged captured items; acknowledge, flag, ask |
+| Lead | also work on workspace projects, publish, create and revoke share links, add connectors, invite Members, see Lead-only material |
+| Owner | also change roles, remove members, invite Leads and Owners |
+
+Private sources and Private work-log entries are removed in the browser before a project is saved to a workspace, and again on the server.
+
+**Signed share links.** A link is `/h/<package>?k=<token>`, where the token is an HMAC-SHA256-signed payload (link id, package id, expiry). Opening it checks the signature, the expiry, that the link row still exists for that package and that it has not been revoked, then counts the open. A workspace handover opens only through such a link or for a signed-in member whose role allows it.
+
+**Live connectors.** `POST /api/hooks/discord` (Ed25519 signature over timestamp + raw body), `POST /api/hooks/github/:connector` (HMAC-SHA256 with the connector's secret, duplicate deliveries ignored), `POST /api/hooks/slack` (Slack signing secret, five-minute window). A chat server is tied to one workspace with a one-time link code. Text is redacted on arrival and stored as a capture event with an access tag. Adding an event to a project turns it into a work-log entry, so it passes the permission gate, extraction and quote verification like any other source.
+
+**Ask Baton.** `POST /api/ask` resolves the handover exactly as the successor view does (signed link, member, or demo), so the question is answered from the role-filtered package only. Steps: keyword retrieval with stemming over approved claims → if nothing is strongly related, answer "not in the handover" → otherwise the model receives only the numbered facts and must return sentences with fact numbers → code keeps a sentence only if its cited facts contain its content words and names → if nothing survives, the approved facts are shown as written. Conflicting and missing items are reported as unresolved, never as settled. Each question is recorded for the reviewer.
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/auth/signup`, `/api/auth/login`; GET `/api/auth/me` | Accounts |
+| POST/GET | `/api/orgs`, `/api/orgs/:id`, `…/invites`, `…/members/:user` | Workspaces, invitations, roles |
+| GET/PUT/DELETE | `/api/orgs/:id/projects`, `/api/projects/:id` | Workspace projects (Lead and Owner) |
+| POST | `/api/orgs/:id/publish` | Publish with the signed-in account as approver |
+| GET/POST | `/api/packages/:id/links`; POST `/api/links/:id/revoke` | Signed share links |
+| GET/POST/DELETE | `/api/orgs/:id/connectors`, `/api/connectors/:id` | Connectors |
+| POST | `/api/hooks/discord`, `/api/hooks/github/:id`, `/api/hooks/slack` | Inbound, signature-verified |
+| GET/POST | `/api/orgs/:id/capture`, `…/capture/update` | Capture inbox |
+| POST | `/api/ask` | Ask Baton |

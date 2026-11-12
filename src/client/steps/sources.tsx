@@ -1,5 +1,5 @@
 import { useRef, useState, type DragEvent } from "react";
-import { LuUpload, LuGithub, LuClipboardPaste, LuNotebookPen, LuTrash2, LuEye, LuShieldCheck, LuEyeOff, LuDownload, LuTriangleAlert, LuPlus } from "react-icons/lu";
+import { LuRadio, LuUpload, LuGithub, LuClipboardPaste, LuNotebookPen, LuTrash2, LuEye, LuShieldCheck, LuEyeOff, LuDownload, LuTriangleAlert, LuPlus } from "react-icons/lu";
 import type { AccessTag, LogEntry, LogKind, Source } from "../../core/types";
 import { roleCanSee } from "../../core/permissions";
 import { totalRedactions } from "../../core/redact";
@@ -10,13 +10,14 @@ import { readFile, ACCEPT } from "../files";
 import { useProject, StepFooter } from "../pages/project";
 import { AccessBadge, AccessSelect, Button, Callout, Card, Drawer, Empty, Field, Modal, Segmented, SourceIcon, useToast, cx } from "../ui";
 import { SAMPLE_NAMES } from "./sample-files";
+import { CapturePanel } from "./capture";
 
 const KIND_LABEL: Record<Source["kind"], string> = { github: "GitHub repository", chat: "Chat export", document: "Document", tasks: "Task board", worklog: "Work log", testimony: "Leaver testimony" };
 
 export function SourcesStep() {
   const { project, update, stale } = useProject();
   const toast = useToast();
-  const [tab, setTab] = useState<"upload" | "github" | "paste" | "worklog">("upload");
+  const [tab, setTab] = useState<"upload" | "github" | "paste" | "worklog" | "capture">("upload");
   const [view, setView] = useState<Source | null>(null);
   const [remove, setRemove] = useState<Source | null>(null);
 
@@ -106,6 +107,7 @@ export function SourcesStep() {
               { value: "github", label: <><LuGithub aria-hidden /> GitHub</> },
               { value: "paste", label: <><LuClipboardPaste aria-hidden /> Paste</> },
               { value: "worklog", label: <><LuNotebookPen aria-hidden /> Work log</> },
+              { value: "capture", label: <><LuRadio aria-hidden /> Live capture</> },
             ]}
           />
           <div className="add-body">
@@ -113,6 +115,7 @@ export function SourcesStep() {
             {tab === "github" && <GithubPanel onAdd={addSource} />}
             {tab === "paste" && <PastePanel onAdd={addSource} />}
             {tab === "worklog" && <WorklogPanel />}
+            {tab === "capture" && <CapturePanel />}
           </div>
           <p className="muted xsmall add-note">Only add sources you are authorised to share. Text is redacted for keys, passwords, emails and phone numbers before it is stored.</p>
         </Card>

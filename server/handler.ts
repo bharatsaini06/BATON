@@ -13,15 +13,13 @@ import { buildPackage } from "../src/core/plan";
 import { createSampleProject } from "../src/core/sample";
 import type { Project, SharePackage, SectionKey } from "../src/core/types";
 import { uid } from "../src/core/text";
+import { HttpError, json, limit, parse, readRaw, type Route } from "./http";
+import { workspaceRoutes, workspaceHealth, resolvePackage, recordEvent } from "./workspace";
+export { HttpError };
 
-export const VERSION = "1.0.0";
-const MAX_BODY = 8 * 1024 * 1024;
+export const VERSION = "2.0.0";
 
 // ---------------------------------------------------------------- helpers
-
-export class HttpError extends Error {
-  constructor(public status: number, message: string) { super(message); }
-}
 
 export function securityHeaders(res: ServerResponse) {
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -32,49 +30,6 @@ export function securityHeaders(res: ServerResponse) {
     "Content-Security-Policy",
     "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
   );
-}
-
-function json(res: ServerResponse, status: number, body: unknown) {
-  res.statusCode = status;
-  res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("Cache-Control", "no-store");
-  res.end(JSON.stringify(body));
-}
-
-async function readBody(req: IncomingMessage, pre?: unknown): Promise<unknown> {
-  if (pre !== undefined && pre !== null && pre !== "") return typeof pre === "string" ? JSON.parse(pre) : Buffer.isBuffer(pre) ? JSON.parse(pre.toString("utf8")) : pre;
-  return new Promise((resolve, reject) => {
-    let size = 0;
-    const parts: Buffer[] = [];
-    req.on("data", (c: Buffer) => {
-      size += c.length;
-      if (size > MAX_BODY) { reject(new HttpError(413, "Request is too large (limit 8 MB). Split large exports into smaller files.")); req.destroy(); return; }
-      parts.push(c);
-    });
-    req.on("end", () => {
-      const raw = Buffer.concat(parts).toString("utf8");
-      if (!raw) return resolve({});
-      try { resolve(JSON.parse(raw)); } catch { reject(new HttpError(400, "Body is not valid JSON")); }
-    });
-    req.on("error", reject);
-  });
-}
-
-function parse<T>(schema: z.ZodType<T>, body: unknown): T {
-  const r = schema.safeParse(body);
-  if (!r.success) throw new HttpError(400, "Invalid request: " + r.error.issues.slice(0, 3).map((i) => `${i.path.join(".") || "body"} ${i.message}`).join("; "));
-  return r.data;
-}
-
-// simple fixed-window rate limiter per client IP (protects the AI key and GitHub quota on public demos)
-const hits = new Map<string, { n: number; reset: number }>();
-function limit(req: IncomingMessage, bucket: string, max: number, windowMs = 10 * 60 * 1000) {
-  const ip = String(req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "local").split(",")[0].trim();
-  const key = `${bucket}:${ip}`;
-  const now = Date.now();
-  const h = hits.get(key);
-  if (!h || h.reset < now) { hits.set(key, { n: 1, reset: now + windowMs }); return; }
-  if (++h.n > max) throw new HttpError(429, `Too many requests. Please wait ${Math.ceil((h.reset - now) / 60000)} minute(s).`);
 }
 
 // ---------------------------------------------------------------- schemas (structural checks on input)
@@ -120,9 +75,6 @@ const FlagBody = z.object({ claimId: z.string().max(100), note: z.string().min(1
 
 // ---------------------------------------------------------------- routes
 
-type Ctx = { req: IncomingMessage; res: ServerResponse; body: () => Promise<unknown>; params: string[] };
-type Route = [method: string, pattern: RegExp, fn: (c: Ctx) => Promise<void>];
-
 const routes: Route[] = [
   ["GET", /^\/api\/health$/, async ({ res }) => {
     const ai = aiConfig();
@@ -133,6 +85,7 @@ const routes: Route[] = [
       ai: ai ? { configured: true, provider: ai.provider, providerLabel: PROVIDER_LABEL[ai.provider], model: ai.model } : { configured: false },
       storage: { mode: store.mode, durable: store.durable },
       github: { token: !!process.env.GITHUB_TOKEN },
+      ...workspaceHealth(),
     });
   }],
 
@@ -222,49 +175,51 @@ const routes: Route[] = [
     json(res, 200, { package: pkg, stored, durable: stored && store.durable, storage: store.mode });
   }],
 
-  ["GET", /^\/api\/share\/([\w-]{3,120})$/, async ({ res, params }) => {
-    const store = await getStore();
-    const raw = await store.get(`pkg:${params[0]}`);
-    if (!raw) throw new HttpError(404, "Handover not found on the server.");
-    json(res, 200, { package: JSON.parse(raw) });
+  ["GET", /^\/api\/share\/([\w-]{3,120})$/, async (c) => {
+    const r = await resolvePackage(c, c.params[0]);
+    json(c.res, 200, { package: r.pkg, access: r.via });
   }],
 
-  ["POST", /^\/api\/share\/([\w-]{3,120})\/ack$/, async ({ body, res, params }) => {
-    const b = parse(AckBody, await body());
-    const store = await getStore();
-    const raw = await store.get(`pkg:${params[0]}`);
-    if (!raw) throw new HttpError(404, "Handover not found on the server.");
-    const pkg = JSON.parse(raw) as SharePackage;
-    pkg.acknowledgements[b.section as SectionKey] = { by: b.by, at: new Date().toISOString() };
-    await store.set(`pkg:${pkg.id}`, JSON.stringify(pkg));
-    json(res, 200, { package: pkg });
+  ["POST", /^\/api\/share\/([\w-]{3,120})\/ack$/, async (c) => {
+    const b = parse(AckBody, await c.body());
+    const r = await resolvePackage(c, c.params[0]);
+    json(c.res, 200, { package: await recordEvent(r, "ack", { section: b.section as SectionKey }, b.by) });
   }],
 
-  ["POST", /^\/api\/share\/([\w-]{3,120})\/flag$/, async ({ body, res, params }) => {
-    const b = parse(FlagBody, await body());
-    const store = await getStore();
-    const raw = await store.get(`pkg:${params[0]}`);
-    if (!raw) throw new HttpError(404, "Handover not found on the server.");
-    const pkg = JSON.parse(raw) as SharePackage;
-    pkg.flags.push({ claimId: b.claimId, note: b.note, by: b.by, at: new Date().toISOString() });
-    await store.set(`pkg:${pkg.id}`, JSON.stringify(pkg));
-    json(res, 200, { package: pkg });
+  ["POST", /^\/api\/share\/([\w-]{3,120})\/flag$/, async (c) => {
+    const b = parse(FlagBody, await c.body());
+    const r = await resolvePackage(c, c.params[0]);
+    json(c.res, 200, { package: await recordEvent(r, "flag", { claimId: b.claimId, note: b.note }, b.by) });
   }],
+
+  ...workspaceRoutes,
 ];
 
-export async function handle(req: IncomingMessage, res: ServerResponse, opts: { body?: unknown } = {}): Promise<void> {
+export async function handle(req: IncomingMessage, res: ServerResponse, opts: { body?: unknown; raw?: string } = {}): Promise<void> {
   securityHeaders(res);
   const url = new URL(req.url || "/", "http://local");
   const forced = url.searchParams.get("__path");
   const path = forced !== null ? "/api/" + forced.replace(/^\/+/, "") : url.pathname.replace(/\/+$/, "") || "/";
+  url.searchParams.delete("__path");
   const method = (req.method || "GET").toUpperCase();
+  const host = String(req.headers["x-forwarded-host"] || req.headers.host || "localhost");
+  const proto = String(req.headers["x-forwarded-proto"] || (/^(localhost|127\.)/.test(host) ? "http" : "https")).split(",")[0];
   try {
     for (const [m, re, fn] of routes) {
       const match = re.exec(path);
       if (!match) continue;
       if (m !== method) continue;
-      let cached: Promise<unknown> | undefined;
-      await fn({ req, res, params: match.slice(1), body: () => (cached ||= readBody(req, opts.body)) });
+      let rawP: Promise<string> | undefined;
+      let bodyP: Promise<unknown> | undefined;
+      const pre = opts.body;
+      const raw = () => (rawP ||= opts.raw !== undefined ? Promise.resolve(opts.raw) : pre !== undefined && pre !== null && pre !== "" ? Promise.resolve(typeof pre === "string" ? pre : Buffer.isBuffer(pre) ? pre.toString("utf8") : JSON.stringify(pre)) : readRaw(req));
+      const body = () => (bodyP ||= (async () => {
+        if (opts.raw === undefined && pre !== undefined && pre !== null && pre !== "" && typeof pre !== "string" && !Buffer.isBuffer(pre)) return pre;
+        const text = await raw();
+        if (!text) return {};
+        try { return JSON.parse(text); } catch { throw new HttpError(400, "Body is not valid JSON"); }
+      })());
+      await fn({ req, res, params: match.slice(1), body, raw, query: url.searchParams, origin: `${proto}://${host}` });
       return;
     }
     if (routes.some(([, re]) => re.test(path))) throw new HttpError(405, "Method not allowed");

@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { LuPlus, LuPlay, LuFolderOpen, LuUpload, LuTrash2, LuDownload } from "react-icons/lu";
+import { useEffect, useRef, useState } from "react";
+import { LuPlus, LuPlay, LuFolderOpen, LuUpload, LuTrash2, LuDownload, LuCloud, LuBuilding2 } from "react-icons/lu";
 import type { Project } from "../../core/types";
 import { readiness } from "../../core/plan";
 import { useStore, saveProject, deleteProject } from "../store";
@@ -7,6 +7,9 @@ import { navigate, Link } from "../router";
 import { Button, Card, Empty, Meter, Modal, Spinner, useToast } from "../ui";
 import { startSample } from "./landing";
 import { download } from "../files";
+import { api, type WorkspaceProject } from "../api";
+import { useSession } from "../session";
+import { openFromWorkspace } from "../sync";
 import { uid, formatDateTime } from "../../core/text";
 
 export async function newProject(): Promise<Project> {
@@ -103,6 +106,7 @@ export function Dashboard() {
                   <div className="project-meta">
                     <span className="chip">{STAGE_LABEL[p.stage]}</span>
                     {p.isSample && <span className="chip chip-amber">Sample</span>}
+                    {p.orgId && <span className="chip"><LuCloud aria-hidden /> Workspace</span>}
                     <span className="muted small">{p.sources.length} sources · {p.claims.length} claims · v{p.versions.length}</span>
                   </div>
                   <div className="muted xsmall">Updated {formatDateTime(p.updatedAt)}</div>
@@ -116,6 +120,7 @@ export function Dashboard() {
           })}
         </div>
       )}
+      <WorkspaceProjects localIds={new Set(list.map((p) => p.id))} />
       <Modal
         open={!!confirm}
         onClose={() => setConfirm(null)}
@@ -125,5 +130,37 @@ export function Dashboard() {
         <p>“{confirm?.title}” and its sources will be removed from this browser. Published handovers stay available at their links.</p>
       </Modal>
     </div>
+  );
+}
+
+/** Projects saved to the signed-in person's workspace that are not on this device yet. */
+function WorkspaceProjects({ localIds }: { localIds: Set<string> }) {
+  const { user, org, canEdit } = useSession();
+  const toast = useToast();
+  const [items, setItems] = useState<WorkspaceProject[] | null>(null);
+  const [opening, setOpening] = useState<string | null>(null);
+  useEffect(() => {
+    setItems(null);
+    if (!user || !org || !canEdit) return;
+    api.wsProjects(org.id).then((r) => setItems(r.projects)).catch(() => setItems([]));
+  }, [user?.id, org?.id, canEdit]);
+  const rest = (items || []).filter((p) => !localIds.has(p.id));
+  if (!user || !org || !canEdit || !rest.length) return null;
+  return (
+    <Card className="mt">
+      <h2 className="card-title"><LuBuilding2 aria-hidden /> In {org.name}, not on this device yet</h2>
+      <table className="table">
+        <thead><tr><th>Project</th><th>Last change</th><th /></tr></thead>
+        <tbody>
+          {rest.map((p) => (
+            <tr key={p.id}>
+              <td><b>{p.title}</b></td>
+              <td className="small">{formatDateTime(p.updatedAt)}{p.updatedBy ? ` · ${p.updatedBy}` : ""}</td>
+              <td><Button size="sm" loading={opening === p.id} onClick={async () => { setOpening(p.id); try { const pr = await openFromWorkspace(p.id); navigate(`/p/${pr.id}/sources`); } catch (e) { toast("danger", (e as Error).message); } setOpening(null); }}>Open here</Button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Card>
   );
 }

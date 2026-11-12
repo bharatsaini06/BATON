@@ -8,7 +8,36 @@ npm run typecheck      # TypeScript, server + client
 npm test               # 25 unit, integration and provider-contract tests
 node tests/e2e.mjs     # 27 browser checks (Playwright + Chromium)
 node tests/e2e-ai.mjs  # 7 checks of the AI path over HTTP with a mock model server
+npx tsx --test tests/round3.test.ts   # 14 Round 3 tests (Ask Baton, capture, signatures, workspace API)
+bash tests/rls.sh                     # 48 Row-Level Security checks on a real PostgreSQL
+node tests/e2e-round3.mjs             # 29 browser checks of accounts, connectors, share links, Ask Baton
 ```
+
+## Results (Round 3 build)
+
+| Suite | Result |
+|---|---|
+| Type-check (server + client) | Pass, 0 errors |
+| Round 2 suites (core 20, provider contracts 5, browser 27, AI path 7) | All pass |
+| Round 3 unit + API (`tests/round3.test.ts`) | 14 / 14 pass |
+| Row-Level Security on PostgreSQL 16 (`tests/rls.sh` + `tests/rls.sql`) | 48 / 48 pass |
+| Round 3 browser journey (`tests/e2e-round3.mjs`) | 29 / 29 pass, 0 browser console errors |
+
+### What the Round 3 tests cover
+
+| Area | Checks |
+|---|---|
+| Ask Baton | answers with citations; "not in the handover" when nothing approved covers the question; never presents a conflict or gap as settled; a Member's answer cannot contain Lead-only facts; model sentences kept only when the cited facts support them; invented wording falls back to approved facts; injected instructions inside a fact are inert |
+| Live capture | command parsing; GitHub events to ownership / task / decision items; secrets redacted on arrival; captured items become work-log evidence and verified claims |
+| Signatures | Discord Ed25519, GitHub HMAC-SHA256, Slack signing secret — changed body, wrong secret and unknown connector are rejected |
+| Accounts and roles | sign-up, sign-in, invitations, role changes, removal; a Member cannot list or open projects, add connectors or create links; a Lead cannot change roles |
+| Row-Level Security | run as real database roles on PostgreSQL: outsiders see nothing; Members see only Member handovers and Member-tagged captured items; removed members lose access; nobody can raise their own role |
+| Signed links | open, altered signature refused, link for another handover refused, expired link refused, forged link with another secret refused, revoked link refused, opens counted |
+| Browser journey | account → workspace → invite → Discord and GitHub signed calls → inbox → project → publish as account → share link → Ask Baton → acknowledge → revoke → invited Member's view |
+
+### Not tested live from the build environment
+
+The build environment has no outbound network, so these were tested against local stand-ins and must be confirmed on the deployed site with the checklist in `docs/CONNECTORS.md`: Supabase Auth and PostgREST (adapter tested against a mock; the SQL policies were run on a real PostgreSQL 16), Discord's and GitHub's real requests (tested with correctly signed requests built the same way), Slack (same), and live AI providers (**Test AI** button).
 
 ## Results (Round 2 build)
 

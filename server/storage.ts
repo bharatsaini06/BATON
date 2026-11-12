@@ -11,6 +11,7 @@ export interface Store {
   durable: boolean;
   get(key: string): Promise<string | null>;
   set(key: string, value: string): Promise<void>;
+  del(key: string): Promise<void>;
 }
 
 const TTL_SECONDS = 60 * 60 * 24 * 180; // published packages expire after 180 days
@@ -27,12 +28,13 @@ function upstash(url: string, token: string): Store {
     durable: true,
     async get(key) { return (await call(`/get/${encodeURIComponent(key)}`)).result; },
     async set(key, value) { await call(`/set/${encodeURIComponent(key)}?EX=${TTL_SECONDS}`, value); },
+    async del(key) { await call(`/del/${encodeURIComponent(key)}`); },
   };
 }
 
 function memory(): Store {
   const m = new Map<string, string>();
-  return { mode: "memory", durable: false, async get(k) { return m.get(k) ?? null; }, async set(k, v) { m.set(k, v); } };
+  return { mode: "memory", durable: false, async get(k) { return m.get(k) ?? null; }, async set(k, v) { m.set(k, v); }, async del(k) { m.delete(k); } };
 }
 
 async function fileStore(dir: string): Promise<Store | null> {
@@ -50,10 +52,13 @@ async function fileStore(dir: string): Promise<Store | null> {
     durable: !process.env.VERCEL,
     async get(k) { try { return await fs.readFile(safe(k), "utf8"); } catch { return null; } },
     async set(k, v) { await fs.writeFile(safe(k), v, "utf8"); },
+    async del(k) { await fs.unlink(safe(k)).catch(() => {}); },
   };
 }
 
 let cached: Promise<Store> | null = null;
+/** Tests only: forget the cached store so a new DATA_DIR takes effect. */
+export function resetStore() { cached = null; }
 export function getStore(): Promise<Store> {
   if (!cached) {
     cached = (async () => {
