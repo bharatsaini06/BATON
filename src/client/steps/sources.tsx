@@ -5,6 +5,7 @@ import { roleCanSee } from "../../core/permissions";
 import { totalRedactions } from "../../core/redact";
 import { LOG_LABEL } from "../../core/worklog";
 import { formatDate, formatDateTime, uid } from "../../core/text";
+import { Redacted } from "../components/claim";
 import { api } from "../api";
 import { readFile, ACCEPT } from "../files";
 import { useProject, StepFooter } from "../pages/project";
@@ -154,7 +155,7 @@ export function SourceDrawer({ source, onClose, highlight }: { source: Source | 
             {c.locator.url ? <a href={c.locator.url} target="_blank" rel="noreferrer noopener">{c.locator.label}</a> : <span>{c.locator.label}</span>}
             <span className="muted xsmall">{c.id}</span>
           </div>
-          <pre className="chunk-text">{c.text}</pre>
+          <pre className="chunk-text"><Redacted text={c.text} /></pre>
         </div>
       ))}
     </Drawer>

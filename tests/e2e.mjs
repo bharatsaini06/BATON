@@ -25,7 +25,7 @@ const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true });
 const page = await ctx.newPage();
 const consoleErrors = [];
-page.on("console", (m) => m.type() === "error" && consoleErrors.push(m.text()));
+page.on("console", (m) => m.type() === "error" && !/ERR_(INTERNET_DISCONNECTED|NAME_NOT_RESOLVED|CONNECTION|PROXY|TUNNEL|FAILED)|fonts\.g/.test(m.text() + m.location().url) && consoleErrors.push(m.text()));
 page.on("pageerror", (e) => consoleErrors.push(String(e)));
 const shot = (name) => page.screenshot({ path: path.join(SHOTS, name + ".png"), fullPage: true });
 
@@ -42,7 +42,7 @@ try {
 
   // ---- landing
   await page.goto(BASE + "/");
-  await page.getByRole("heading", { name: /pass on the project/i }).waitFor();
+  await page.getByRole("heading", { name: /the project stays/i }).waitFor();
   await shot("01-landing");
   await page.getByRole("button", { name: "Try the sample project" }).click();
 

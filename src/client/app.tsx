@@ -65,7 +65,7 @@ function Header({ minimal }: { minimal?: boolean }) {
     <header className="header">
       <div className="header-in">
         <Link to="/" className="brand" title="Baton home">
-          <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden><rect width="64" height="64" rx="14" fill="#0F1B3D" /><rect x="13" y="28" width="38" height="8" rx="4" fill="#E8890C" transform="rotate(-35 32 32)" /><circle cx="46" cy="18" r="5" fill="#fff" /></svg>
+          <i className="brand-baton" aria-hidden />
           <span>Baton</span>
         </Link>
         {!minimal && (

@@ -97,6 +97,11 @@ export function SuccessorPage({ id }: { id: string }) {
         <div className="succ-hero-in">
           <div className="eyebrow light">Handover · read-only · role-filtered</div>
           <h1>{pkg.project}</h1>
+          <div className="pass-row" aria-hidden>
+            <span className="avatar avatar-sm">{initials(pkg.leaver)}</span><span>{pkg.leaver} is leaving</span>
+            <span className="pass-lane"><i /></span>
+            <span className="avatar avatar-sm pass-to">{initials(pkg.successor)}</span><b>{pkg.successor}, this is yours now</b>
+          </div>
           <div className="succ-sub">
             For <b>{pkg.successor}</b> ({pkg.role === "lead" ? "Lead" : "Member"}) · from <b>{pkg.leaver}</b> · approved by <b>{pkg.approvedBy}</b> on {formatDate(pkg.approvedAt)}
           </div>
@@ -271,6 +276,7 @@ function PlanView({ pkg, onClaim }: { pkg: SharePackage; onClaim: (id: string) =
   );
 }
 
+const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?";
 const ASK_EXAMPLES = ["What should I do first?", "Who owns what?", "What deadlines are coming up?", "What are the biggest risks?"];
 
 /** Ask Baton: answers come only from the approved claims in this handover, each sentence cited. */

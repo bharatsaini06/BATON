@@ -29,7 +29,7 @@ const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await ctx.newPage();
 const consoleErrors = [];
-const watch = (p) => { p.on("console", (m) => m.type() === "error" && !/status of 4\d\d/.test(m.text()) && consoleErrors.push(m.text())); p.on("pageerror", (e) => consoleErrors.push(String(e))); };
+const watch = (p) => { p.on("console", (m) => m.type() === "error" && !/status of 4\d\d|ERR_(INTERNET_DISCONNECTED|NAME_NOT_RESOLVED|CONNECTION|PROXY|TUNNEL|FAILED)|fonts\.g/.test(m.text() + m.location().url) && consoleErrors.push(m.text())); p.on("pageerror", (e) => consoleErrors.push(String(e))); };
 watch(page);
 const shot = (name, p = page) => p.screenshot({ path: path.join(SHOTS, name + ".png"), fullPage: true });
 

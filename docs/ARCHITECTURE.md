@@ -48,7 +48,7 @@
 | POST | `/api/share/:id/ack` | Acknowledge a section |
 | POST | `/api/share/:id/flag` | Flag a claim as wrong |
 
-All inputs are validated with zod; bodies are limited to 8 MB (4.5 MB on Vercel). Rate limits per IP: generate 40 / 10 min, GitHub import 20 / 10 min, AI test 10 / 10 min. Security headers: strict Content-Security-Policy (no third-party scripts), `X-Frame-Options: DENY`, `nosniff`, referrer and permissions policies.
+All inputs are validated with zod; bodies are limited to 8 MB (4.5 MB on Vercel). Rate limits per IP: generate 40 / 10 min, GitHub import 20 / 10 min, AI test 10 / 10 min. Security headers: strict Content-Security-Policy (no third-party scripts; the only outside requests are Google Fonts stylesheets and font files, with bundled fonts as fallback), `X-Frame-Options: DENY`, `nosniff`, referrer and permissions policies.
 
 ## Evidence model
 
@@ -91,3 +91,7 @@ Private sources and Private work-log entries are removed in the browser before a
 | POST | `/api/hooks/discord`, `/api/hooks/github/:id`, `/api/hooks/slack` | Inbound, signature-verified |
 | GET/POST | `/api/orgs/:id/capture`, `…/capture/update` | Capture inbox |
 | POST | `/api/ask` | Ask Baton |
+
+## Interface (Round 3 redesign)
+
+The interface is built on the product's own idea. Sources are shown as papers, evidence is a highlighter stroke over the exact quote (green for Verified, yellow for Inferred, pink for Conflicting, a dashed empty box for Missing), redacted secrets are blacked-out bars, a reviewer's decision is a stamp, the leaver's own answers are shown as a handwritten note, and the handover steps are a relay track where the current step holds the baton. Source text is set in a serif face so it is never confused with Baton's own wording. All motion answers an action or shows evidence being matched, and is switched off for people who ask their device to reduce motion.

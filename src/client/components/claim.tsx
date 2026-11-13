@@ -12,6 +12,14 @@ export const ENGINE_LABEL: Record<Claim["engine"], { label: string; icon: typeof
   worklog: { label: "Work log", icon: LuNotebookPen },
 };
 
+const RED = /(\[REDACTED[^\]]*\])/g;
+/** Show redaction markers as blacked-out bars; the marker text stays readable. */
+export function Redacted({ text }: { text: string }) {
+  const parts = text.split(RED);
+  if (parts.length === 1) return <>{text}</>;
+  return <>{parts.map((p, i) => (i % 2 ? <span key={i} className="redact" title="Removed before anything was stored">{p}</span> : p))}</>;
+}
+
 /** Split text around the quote so it can be highlighted without injecting HTML. */
 export function Highlight({ text, quote }: { text: string; quote: string }) {
   let start = text.indexOf(quote), len = quote.length;
@@ -22,15 +30,15 @@ export function Highlight({ text, quote }: { text: string; quote: string }) {
       if (m) { start = m.index; len = m[0].length; }
     }
   }
-  if (start < 0) return <>{text}</>;
-  return <>{text.slice(0, start)}<mark>{text.slice(start, start + len)}</mark>{text.slice(start + len)}</>;
+  if (start < 0) return <Redacted text={text} />;
+  return <><Redacted text={text.slice(0, start)} /><mark>{text.slice(start, start + len)}</mark><Redacted text={text.slice(start + len)} /></>;
 }
 
 export function EvidenceDrawer({ claim, chunks, sources, onClose, footer }: { claim: Claim | null; chunks: Map<string, Chunk>; sources: Map<string, Pick<Source, "id" | "name" | "kind" | "access">>; onClose: () => void; footer?: ReactNode }) {
   return (
     <Drawer open={!!claim} onClose={onClose} title="Evidence" subtitle={claim && <><StatusBadge status={claim.status} /> <TypeTag type={claim.type} /></>}>
       {claim && (
-        <>
+        <div className={cx("ev", `ev-st-${claim.status}`)}>
           <p className="ev-statement">{claim.statement}</p>
           <div className={cx("ev-reason", `ev-${claim.status}`)}>
             <strong>Why “{claim.status}”: </strong>{claim.statusReason}
@@ -44,7 +52,7 @@ export function EvidenceDrawer({ claim, chunks, sources, onClose, footer }: { cl
             const ch = chunks.get(e.chunkId);
             const src = sources.get(e.sourceId);
             return (
-              <div key={i} className="ev-item">
+              <div key={i} className={cx("ev-item", ch?.locator.question && "ev-testimony")}>
                 <div className="ev-src">
                   {src && <SourceIcon kind={src.kind} />}
                   <div>
@@ -73,7 +81,7 @@ export function EvidenceDrawer({ claim, chunks, sources, onClose, footer }: { cl
             </div>
           )}
           {footer}
-        </>
+        </div>
       )}
     </Drawer>
   );
