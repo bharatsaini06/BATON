@@ -10,7 +10,7 @@ node tests/e2e.mjs     # 27 browser checks (Playwright + Chromium)
 node tests/e2e-ai.mjs  # 7 checks of the AI path over HTTP with a mock model server
 npx tsx --test tests/round3.test.ts   # 14 Round 3 tests (Ask Baton, capture, signatures, workspace API)
 bash tests/rls.sh                     # 48 Row-Level Security checks on a real PostgreSQL
-node tests/e2e-round3.mjs             # 29 browser checks of accounts, connectors, share links, Ask Baton
+node tests/e2e-round3.mjs             # 32 browser checks of accounts, connectors, share links, Ask Baton
 ```
 
 ## Results (Round 3 build)
@@ -21,7 +21,7 @@ node tests/e2e-round3.mjs             # 29 browser checks of accounts, connector
 | Round 2 suites (core 20, provider contracts 5, browser 27, AI path 7) | All pass |
 | Round 3 unit + API (`tests/round3.test.ts`) | 14 / 14 pass |
 | Row-Level Security on PostgreSQL 16 (`tests/rls.sh` + `tests/rls.sql`) | 48 / 48 pass |
-| Round 3 browser journey (`tests/e2e-round3.mjs`) | 29 / 29 pass, 0 browser console errors |
+| Round 3 browser journey (`tests/e2e-round3.mjs`) | 32 / 32 pass, 0 browser console errors |
 
 ### What the Round 3 tests cover
 

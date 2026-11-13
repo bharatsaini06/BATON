@@ -1,6 +1,6 @@
 {
   "name": "baton-handover",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "private": true,
   "description": "Baton \u2014 evidence-checked, permission-safe project handovers. CodersInPune Hackathon 2026, Team ATHRAV.",
   "type": "module",

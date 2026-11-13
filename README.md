@@ -128,7 +128,7 @@ Full steps, Render alternative and troubleshooting: [docs/DEPLOY.md](docs/DEPLOY
 | AI path over HTTP | `node tests/e2e-ai.mjs` | 7 checks with a mock OpenAI-compatible model server |
 | Round 3 unit + API | `npm test` | 14 tests: Ask Baton grounding, capture parsing, signatures, Supabase adapter, the whole workspace API |
 | Row-Level Security | `npm run test:rls` | 48 checks of `supabase/schema.sql` run as real database roles on PostgreSQL |
-| Round 3 browser journey | `node tests/e2e-round3.mjs` | 29 checks: account, workspace, invite, signed Discord and GitHub calls, inbox, publish, share link, Ask Baton, revoke, Member view |
+| Round 3 browser journey | `node tests/e2e-round3.mjs` | 32 checks: account, workspace, invite, signed Discord and GitHub calls, inbox, publish, share link, Ask Baton, revoke, Member view |
 
 Results and failure cases: [docs/TESTING.md](docs/TESTING.md).
 

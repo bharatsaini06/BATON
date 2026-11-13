@@ -568,7 +568,10 @@ h1, h2, h3 { font-family: var(--display); letter-spacing: -0.02em; }
 h1 { font-weight: 800; }
 
 /* shell */
-.header { background: rgba(238, 240, 246, 0.88); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+/* no backdrop-filter here: it would trap the fixed overlays (How it works) that open from inside the header */
+.header { background: var(--bg); }
+.modal-body { min-height: 0; }
+.overlay { background: rgba(20, 22, 43, 0.45); }
 .brand { font-family: var(--display); font-weight: 800; font-size: 21px; gap: 9px; }
 .brand-baton { display: inline-block; width: 30px; height: 12px; border-radius: 6px; background: var(--pen); transform: rotate(-24deg); box-shadow: inset -8px 0 0 var(--ink); transition: transform 0.5s cubic-bezier(0.3, 1.6, 0.5, 1); }
 .brand:hover .brand-baton { transform: rotate(156deg); }

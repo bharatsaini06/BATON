@@ -20,7 +20,7 @@ export function SourceMark({ source }: { source: CaptureSource }) {
 }
 
 export function WorkspacePage() {
-  const { user, orgs, org, invites, loaded, session } = useSession();
+  const { user, orgs, org, invites, loaded, loadError, session } = useSession();
   const toast = useToast();
   const [tab, setTab] = useState<Tab>("members");
   const [creating, setCreating] = useState(false);
@@ -29,6 +29,12 @@ export function WorkspacePage() {
 
   useEffect(() => { if (!session) navigate("/account?next=/workspace", { replace: true }); }, [session]);
   if (!user) return null;
+  if (!loaded && loadError) return (
+    <div className="page narrow">
+      <Callout tone="danger" title="Your workspace could not be loaded">{loadError}</Callout>
+      <div className="row gap mt"><Button variant="primary" onClick={() => void refreshMe()}>Try again</Button><Button onClick={() => { setSession(null); navigate("/account?next=/workspace"); }}>Sign in again</Button></div>
+    </div>
+  );
   if (!loaded) return <div className="page"><Spinner label="Loading workspace…" /></div>;
 
   const create = async () => {

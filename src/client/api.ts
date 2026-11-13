@@ -24,7 +24,7 @@ async function send(path: string, init: Init | undefined, token: string | undefi
 async function call<T>(path: string, init?: Init): Promise<T> {
   const session = getSession();
   let res = await send(path, init, session?.token);
-  if (res.status === 401 && session && !path.startsWith("/api/auth/")) {
+  if (res.status === 401 && session && !/^\/api\/auth\/(login|signup|refresh)/.test(path)) {
     // the session token expired: renew it once, otherwise sign out
     let renewed: Session | null = null;
     if (session.refresh) {

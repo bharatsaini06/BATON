@@ -30,7 +30,7 @@ https://github.com/bharatsaini06/BATON (public)
 - **Services / libraries:** Supabase (Postgres, Auth), Discord Interactions API, GitHub Webhooks, Google Gemini / Anthropic / OpenAI-compatible APIs (configurable), Upstash Redis, Vercel; React, zod, pdf.js, JSZip, esbuild, Playwright. AI assistance: Claude was used as a coding and writing assistant; the team reviewed the decisions.
 
 ## Testing notes
-Type-check clean. Round 2 suites still pass (20 core, 5 provider contracts, 27 browser, 7 AI path). New: 14 Round 3 unit/API tests, 48 Row-Level Security checks on PostgreSQL 16, 29 browser checks of the Round 3 journey. Live check on the deployed site: **[write what you confirmed with the checklist in docs/CONNECTORS.md — date, what worked, anything that did not]**. Feedback from people who tried it: **[add real notes only]**.
+Type-check clean. Round 2 suites still pass (20 core, 5 provider contracts, 27 browser, 7 AI path). New: 14 Round 3 unit/API tests, 48 Row-Level Security checks on PostgreSQL 16, 32 browser checks of the Round 3 journey. Live check on the deployed site: **[write what you confirmed with the checklist in docs/CONNECTORS.md — date, what worked, anything that did not]**. Feedback from people who tried it: **[add real notes only]**.
 
 ## Known limitations
 See README → Known limitations (connectors are signed commands and webhooks, not OAuth; Slack not run against a live workspace; Private sources stay on the author's device; no password-reset email).

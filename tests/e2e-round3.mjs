@@ -204,6 +204,23 @@ try {
   ok(mList.projects.length === 0 && (await asMember(`/api/projects/${pid}`)).status >= 400, "a Member cannot list or open workspace projects (raw sources)");
   ok((await asMember(`/api/orgs/${orgId}/connectors`, "POST", { kind: "github", defaultAccess: "member" })).status === 403, "a Member cannot add a connector");
 
+  // ---- How it works opens fully inside the screen and can be closed
+  await page.goto(BASE + "/workspace");
+  await page.getByRole("heading", { name: "CodeCraft Club" }).waitFor();
+  await page.getByRole("button", { name: /How it works/ }).click();
+  const dlg = page.getByRole("dialog");
+  await dlg.waitFor();
+  const box = await dlg.boundingBox();
+  ok(box.y >= 0 && box.y + box.height <= 900 && await dlg.getByRole("button", { name: "Close" }).isVisible(), "How it works fits the screen with its Close button visible");
+  await dlg.getByRole("button", { name: "Close" }).click();
+  ok(await page.getByRole("dialog").count() === 0, "How it works closes");
+
+  // ---- an expired session must not leave the workspace loading forever
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem("baton:session")); s.token = "expired." + s.token; delete s.refresh; localStorage.setItem("baton:session", JSON.stringify(s)); });
+  await page.goto(BASE + "/workspace");
+  await page.waitForURL(/\/account/, { timeout: 10000 });
+  ok(await page.getByRole("button", { name: /Sign in|Create account/ }).first().isVisible(), "an expired session returns to sign-in instead of loading forever");
+
   ok(consoleErrors.length === 0, `no browser console errors${consoleErrors.length ? ": " + consoleErrors.slice(0, 3).join(" | ") : ""}`);
 } catch (e) {
   failures++;
