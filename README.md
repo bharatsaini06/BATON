@@ -99,7 +99,7 @@ flowchart LR
   KV -->|share link| UI
 ```
 
-- **Local-first:** work in progress (sources, claims, review decisions) stays in the user's browser (IndexedDB). The server processes requests in memory and stores **only published handover packages**.
+- **Where data lives:** without an account, work in progress (sources, claims, review decisions) stays in the user's browser (IndexedDB) and the server stores only published handover packages. With an account (Round 3), the workspace — organisations, members and roles, projects, captured items from Discord, Slack and GitHub, published handovers, share links and acknowledgements — is stored in Supabase Postgres behind Row-Level Security, so each person reads only what their organisation and role allow. Sources marked Private stay in the author's browser even then. Without Supabase configured, the same server falls back to built-in accounts and a local store.
 - **Permission gate before the AI:** the extractor and the model only ever receive chunks the successor's role may see. A claim is published only if every chunk it cites is visible to that role, and only cited chunks travel with the package.
 - **AI is optional and swappable:** Gemini, Anthropic Claude or any OpenAI-compatible API (Groq, OpenRouter, local). Without a key, an offline rules engine extracts claims and the same verifier, permissions and review apply. If the model fails mid-run, the affected batches fall back to the rules engine and the user is told.
 

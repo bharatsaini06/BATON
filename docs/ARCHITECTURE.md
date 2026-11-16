@@ -33,7 +33,7 @@
 |---|---|
 | Status decided by code, not the model | Research on generative search found only 51.5% of sentences fully supported by their own citations (Liu et al., 2023). A citation is not proof; a string match against stored text is checkable. |
 | Gate before the AI | The model is only given what the successor may see, so it has nothing else to repeat (tests check the actual prompt text). This also means the AI provider only ever processes text the successor is entitled to. |
-| Local-first workspace | Raw sources (chats, notes) are the most sensitive data. Keeping them in the browser removes a whole class of server-side risk for the demo; only approved, filtered packages are stored. |
+| Local-first by default, shared workspace when signed in | Raw sources (chats, notes) are the most sensitive data. Without an account everything stays in the browser and only approved, filtered packages are stored. With an account (Round 3) projects, captured items and handovers are stored in Supabase behind Row-Level Security so a team can share them; sources marked Private still never leave the author's browser. |
 | Rules engine fallback | The demo must never break because of a missing key, a quota or an outage. Same verifier and permissions apply. |
 | Typed claims over summaries | Small claims can each be checked, cited, reviewed, edited, rejected, versioned and acknowledged. |
 | Committed build output | Deploys on Vercel/Render without any build step, so the judged link is reproducible. |

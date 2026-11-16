@@ -57,9 +57,9 @@ Result: planted mistakes caught **4 / 8 → 8 / 8**; true facts kept Verified 4 
 | Signed links | open, altered signature refused, link for another handover refused, expired link refused, forged link with another secret refused, revoked link refused, opens counted |
 | Browser journey | account → workspace → invite → Discord and GitHub signed calls → inbox → project → publish as account → share link → Ask Baton → acknowledge → revoke → invited Member's view |
 
-### Judge-style robustness pass (final build 2.3.0)
+### Judge-style robustness pass (build 2.4.0)
 
-Run on the final build in Chromium, doing what a first-time user might do:
+Run in Chromium on build 2.4.0 (first on 2.3.0, re-run unchanged on 2.4.0), doing what a first-time user might do:
 
 | Action | Result |
 |---|---|
