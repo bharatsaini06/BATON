@@ -223,8 +223,8 @@ The full plan is in [docs/ROADMAP.md](docs/ROADMAP.md). In short:
 |---|---|
 |  Chitransh Nagar(team lead) | AI / ML |
 | Bharat Saini | Backend |
-| Bhavishay Jhalani | Frontend |
-| Dhaksh Sharma | Research |
+| Bhavishya Jhalani | Frontend |
+| Daksh Sharma | Research |
 
 ## License
 
