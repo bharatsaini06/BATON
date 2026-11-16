@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { Component, createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { LuCpu, LuSparkles, LuCircleHelp, LuLogIn, LuBuilding2 } from "react-icons/lu";
 import { api, type Health } from "./api";
 import { usePath, match, Link, navigate } from "./router";
@@ -30,6 +30,26 @@ export function App() {
   );
 }
 
+/** If a page fails while drawing, show what happened and a way out instead of a blank screen. */
+class PageGuard extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error) { console.warn("Page error:", error); }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="page narrow center-page">
+        <h1>This page could not be shown</h1>
+        <p className="muted">Something on this page failed to load: {this.state.error.message}. Your projects are safe. Reload the page, or go back to your projects.</p>
+        <div className="row gap" style={{ justifyContent: "center" }}>
+          <button className="btn btn-primary btn-md" onClick={() => location.reload()}>Reload</button>
+          <button className="btn btn-secondary btn-md" onClick={() => navigate("/projects")}>Go to projects</button>
+        </div>
+      </div>
+    );
+  }
+}
+
 function Routes() {
   const path = usePath();
   let page: ReactNode;
@@ -47,7 +67,7 @@ function Routes() {
   return (
     <div className={cx("shell", successor && "shell-successor")}>
       <Header minimal={successor} />
-      <main className="main">{page}</main>
+      <main className="main"><PageGuard key={path}>{page}</PageGuard></main>
       <footer className="footer">
         <span>Baton · evidence-checked project handovers</span>
         <span>Demo data is synthetic. Built by Team ATHRAV for the CodersInPune Hackathon 2026.</span>

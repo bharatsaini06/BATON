@@ -427,7 +427,8 @@ export const workspaceRoutes: Route[] = [
     const m = await me(c);
     await need(m, c.params[0], "lead");
     const rows = await getBackend().db.select("connectors", { org_id: c.params[0] }, { as: m.token, order: "created_at.asc" });
-    json(c.res, 200, { connectors: rows.map((r) => connectorView(r, c.origin)) });
+    // only connector kinds this version offers (a Slack connector saved by an earlier version is hidden)
+    json(c.res, 200, { connectors: rows.filter((r) => r.kind === "discord" || r.kind === "github").map((r) => connectorView(r, c.origin)) });
   }),
   R("POST", `orgs/${ID}/connectors`, async (c) => {
     const m = await me(c);
@@ -470,7 +471,7 @@ export const workspaceRoutes: Route[] = [
     if (status && ["new", "added", "dismissed"].includes(status)) filter.status = status;
     const rows = await getBackend().db.select("capture_events", filter, { as: m.token, order: "created_at.desc", limit: 300 });
     const project = c.query.get("project");
-    json(c.res, 200, { events: rows.map(toEvent).filter((e) => canSeeAccess(role, e.access) && (!project || !e.projectId || e.projectId === project)) });
+    json(c.res, 200, { events: rows.map(toEvent).filter((e) => (e.source === "discord" || e.source === "github") && canSeeAccess(role, e.access) && (!project || !e.projectId || e.projectId === project)) });
   }),
   R("POST", `orgs/${ID}/capture/update`, async (c) => {
     const m = await me(c);

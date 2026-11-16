@@ -254,7 +254,7 @@ function ConnectorsTab({ orgId }: { orgId: string }) {
       {!list.length ? <Card><Empty icon={<LuPlug />} title="No connectors yet">Add Discord or a GitHub webhook above. Setup takes about two minutes.</Empty></Card> : list.map((x) => (
         <Card key={x.id}>
           <div className="row between top">
-            <div className="row gap"><SourceMark source={x.kind} /><div><h3>{KIND_INFO[x.kind].title}{x.label ? ` · ${x.label}` : ""}</h3>
+            <div className="row gap"><SourceMark source={x.kind} /><div><h3>{KIND_INFO[x.kind]?.title || x.kind}{x.label ? ` · ${x.label}` : ""}</h3>
               <div className="muted xsmall">Added by {x.createdBy} · {formatDate(x.at)} · new items are <AccessBadge access={x.defaultAccess} />{x.projectId ? ` · goes to “${projects.get(x.projectId)?.title || "a project"}”` : " · goes to the workspace inbox"}</div></div></div>
             <div className="row gap">
               <span className={cx("chip", x.linked ? "chip-ok" : "chip-wait")}>{x.linked ? <><LuCheck aria-hidden /> Linked{x.externalId && x.kind === "github" ? ` · ${x.externalId}` : ""}</> : <><LuClock aria-hidden /> Waiting for first signal</>}</span>

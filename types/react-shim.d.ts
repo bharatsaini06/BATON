@@ -23,6 +23,7 @@ declare module "react" {
   export type JSX = any;
   export function createContext<T>(v: T): Context<T>;
   export const StrictMode: any;
+  export class Component<P = {}, S = {}> { constructor(props: P); props: P & { children?: any; key?: any }; state: S; setState(s: Partial<S>): void; render(): any; }
   const React: any;
   export default React;
 }
