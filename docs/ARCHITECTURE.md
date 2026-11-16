@@ -1,5 +1,12 @@
 # Architecture and technical decisions
 
+## At a glance (current build)
+
+- **Without signing in** a project lives in the browser (IndexedDB); the server keeps nothing until a handover is published.
+- **Signed in**, a project can be saved to a workspace in Postgres (Supabase) protected by Row-Level Security, so it opens on any device; Private sources are removed before saving. Accounts, roles, invitations, connectors, the Capture inbox, published handovers and signed share links are server-side. Details in *Round 3 additions* below.
+- **Live capture** arrives from Discord, Slack and GitHub through signed requests, and joins a project's work log.
+- The pipeline below is the same in both modes.
+
 ## Data flow
 
 1. **Ingest (server, stateless).** The browser sends a file's text (PDF and DOCX are converted to text in the browser with pdf.js and JSZip, so binaries never leave the device), a pasted text, a GitHub repository name, or work-log entries.
@@ -10,7 +17,7 @@
 3. **Reconstruct (server, streamed).** `POST /api/generate` returns NDJSON progress events and a final result.
    1. **Permission gate** — keeps only chunks whose (source, chunk) access tag the successor role may see. A chunk is never more visible than its source. Private is never visible to a successor.
    2. **Extraction** — either the AI model (prompted with numbered chunks, strict JSON schema, one retry on invalid JSON, concurrency 3, up to 8 batches of about 12k characters) or the offline rules engine (sentence patterns for decisions, ownership, open work, deadlines, risks, dependencies, contacts, recurring problems and next steps; structured handling of work-log entries, CSV rows and GitHub issues). If an AI batch fails, its chunks go to the rules engine and a warning is shown.
-   3. **Verification** — for each candidate the code searches the cited chunk for the quote (exact, then whitespace/quote/dash-normalised, then ellipsis fragments, then punctuation-insensitive). If the cited id is wrong it searches the other *visible* chunks. A claim is **Verified** only if the quote is found, the basis is "stated", every named person appears in the evidence, and at least a third of the statement's content words appear in the chunk. Otherwise it is **Inferred** with the reason recorded.
+   3. **Verification** — (value checks added in Round 3: dates, money amounts and negation in the statement must agree with the cited source) for each candidate the code searches the cited chunk for the quote (exact, then whitespace/quote/dash-normalised, then ellipsis fragments, then punctuation-insensitive). If the cited id is wrong it searches the other *visible* chunks. A claim is **Verified** only if the quote is found, the basis is "stated", every named person appears in the evidence, and at least a third of the statement's content words appear in the chunk. Otherwise it is **Inferred** with the reason recorded.
    4. **Merge** — near-duplicates (same type, ≥0.72 token overlap or identical quote) pool their evidence. At most 14 claims per type, ranked by status, confidence and evidence count.
    5. **Conflicts** — owner and date claims of the same type about the same subject (token overlap) but with different values, from different chunks, are both marked **Conflicting** with the other source named.
    6. **Coverage checklist** — adds **Missing** items: open work with no owner, dependencies with no contact, assets mentioned but unowned (domain, hosting, database, payment gateway, social accounts, budget), no description of access transfer, no decisions, no open work.
@@ -25,7 +32,7 @@
 | Decision | Reason |
 |---|---|
 | Status decided by code, not the model | Research on generative search found only 51.5% of sentences fully supported by their own citations (Liu et al., 2023). A citation is not proof; a string match against stored text is checkable. |
-| Gate before the AI | The model cannot leak what it never receives. This also means the AI provider only ever processes text the successor is entitled to. |
+| Gate before the AI | The model is only given what the successor may see, so it has nothing else to repeat (tests check the actual prompt text). This also means the AI provider only ever processes text the successor is entitled to. |
 | Local-first workspace | Raw sources (chats, notes) are the most sensitive data. Keeping them in the browser removes a whole class of server-side risk for the demo; only approved, filtered packages are stored. |
 | Rules engine fallback | The demo must never break because of a missing key, a quota or an outage. Same verifier and permissions apply. |
 | Typed claims over summaries | Small claims can each be checked, cited, reviewed, edited, rejected, versioned and acknowledged. |

@@ -4,14 +4,35 @@ All suites were run on the final build before submission. Re-run them with:
 
 ```bash
 npm install
-npm run typecheck      # TypeScript, server + client
-npm test               # 25 unit, integration and provider-contract tests
-node tests/e2e.mjs     # 27 browser checks (Playwright + Chromium)
-node tests/e2e-ai.mjs  # 7 checks of the AI path over HTTP with a mock model server
-npx tsx --test tests/round3.test.ts   # 14 Round 3 tests (Ask Baton, capture, signatures, workspace API)
-bash tests/rls.sh                     # 48 Row-Level Security checks on a real PostgreSQL
-node tests/e2e-round3.mjs             # 35 browser checks of accounts, connectors, share links, Ask Baton
+npm run typecheck        # TypeScript, server + client
+npm test                 # 40 tests: 20 core + 5 AI-provider contracts + 14 Round 3 API + 1 trust challenge (12 cases)
+npm run test:trust       # the trust challenge alone, printing its results table
+npx playwright install chromium   # once, for the browser suites
+node tests/e2e.mjs       # 27 browser checks of the main journey
+node tests/e2e-ai.mjs    # 7 checks of the AI path over HTTP with a mock model server
+node tests/e2e-round3.mjs  # 35 browser checks: accounts, connectors, share links, Ask Baton
+npm run test:rls         # 48 Row-Level Security checks (needs a local PostgreSQL)
 ```
+
+`npm run test:e2e` runs the three browser suites in a row. GitHub Actions (`.github/workflows/ci.yml`) runs the type-check, `npm test` and the build on every push.
+
+## Trust challenge (planted mistakes)
+
+A mock model proposes 12 facts about the synthetic sample project: 4 true and 8 carrying mistakes a real model makes. The verifier must mark only the true ones Verified. Same cases, previous verifier (build 2.3.0) against the current one (2.4.0):
+
+| Case | Planted mistake | 2.3.0 | 2.4.0 |
+|---|---|---|---|
+| P1 | Invented quote | Caught | Caught |
+| P2 | Meaning reversed: "not" added | **Missed (Verified)** | Caught |
+| P3 | Meaning reversed: "not" dropped | **Missed (Verified)** | Caught |
+| P4 | Wrong date with a real quote | **Missed (Verified)** | Caught |
+| P5 | Wrong amount with a real quote | **Missed (Verified)** | Caught |
+| P6 | Wrong person with a real quote | Caught | Caught |
+| P7 | Quote from a Lead-only source for a Member successor | Caught | Caught |
+| P8 | Guess presented as a fact | Caught | Caught |
+| T1–T4 | True facts (owner, contact, deadline, amount) | 4 / 4 Verified | 4 / 4 Verified |
+
+Result: planted mistakes caught **4 / 8 → 8 / 8**; true facts kept Verified 4 / 4 in both. On the full sample project the new checks changed no correct claim (28 of 36 Verified for a Member successor before and after). This is a synthetic evaluation written by the team, not a study with users.
 
 ## Results (Round 3 build)
 
@@ -20,6 +41,7 @@ node tests/e2e-round3.mjs             # 35 browser checks of accounts, connector
 | Type-check (server + client) | Pass, 0 errors |
 | Round 2 suites (core 20, provider contracts 5, browser 27, AI path 7) | All pass |
 | Round 3 unit + API (`tests/round3.test.ts`) | 14 / 14 pass |
+| Trust challenge (`tests/trust.test.ts`) | 12 / 12 cases correct |
 | Row-Level Security on PostgreSQL 16 (`tests/rls.sh` + `tests/rls.sql`) | 48 / 48 pass |
 | Round 3 browser journey (`tests/e2e-round3.mjs`) | 35 / 35 pass, 0 browser console errors |
 

@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: npm install --no-audit --no-fund
+      - name: Type-check (server and client)
+        run: npm run typecheck
+      - name: Unit, API, provider and trust-challenge tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Built server starts and answers
+        run: |
+          node dist/server.mjs &
+          sleep 3
+          curl -sf http://localhost:3000/api/health

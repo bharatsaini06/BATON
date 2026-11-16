@@ -29,6 +29,8 @@ Built for the **CodersInPune Hackathon 2026** (HackWithPune) — challenge *Prev
 
 ### Other work after Round 2
 
+- **Stronger verification.** A matching quote is no longer enough: the statement's dates, money amounts and negation must agree with the cited source. In a planted-mistake test the previous verifier caught 4 of 8 mistakes; the current one catches 8 of 8 and still verifies every true fact ([details](docs/TESTING.md#trust-challenge-planted-mistakes)).
+
 - **Interface redesign** built on the product's own idea: sources look like papers, evidence is a highlighter stroke over the exact quote (green Verified, yellow Inferred, pink Conflicting, dashed Missing), redacted secrets are blacked-out bars, a reviewer decision is a stamp, and the steps are a relay track where the current step holds the baton.
 - **Reliability fixes from testing:** an expired sign-in no longer leaves the workspace loading forever (it renews or returns to sign-in); *How it works* opens fully on screen; a failing page shows a message and a way out instead of a blank screen; a double-click can no longer publish or create twice; empty or unreadable uploads are refused with the reason; the Projects page fits a phone screen.
 - Workspace projects open on any device; identity comes from the account.
@@ -37,13 +39,21 @@ Setup for connectors and accounts: [docs/CONNECTORS.md](docs/CONNECTORS.md) and 
 
 The sample project still works with **no sign-in**, so the three-minute judge path below is unchanged.
 
+## Trust challenge: three things a generic AI summary would get wrong
+
+Use the sample project to see each one:
+
+1. **Two sources disagree.** Meeting notes say the sponsor demo is on 12 Dec; a later chat says 20 Dec. *Reconstruct* marks both **Conflicting**, the *Gap Interview* asks the leaver which is right, and the answer becomes cited testimony.
+2. **Something must stay hidden.** Sponsor emails are *Lead only*. Publish for Arjun (a Member) and open the handover: the amounts are not there, and **Ask Baton** answers "Not in the handover" when asked about them.
+3. **A claim without proof.** "Firebase free plan might run out in January" stays **Inferred** with the reason shown, and the domain owner is **Missing**; neither is presented as fact until a person decides.
+
 ## What a judge can do in three minutes
 
 1. **Sources** — see the synthetic project's sources already connected (GitHub repo, WhatsApp export, meeting notes, task board, sponsor emails, private notes and a work log). Note the access tags: sponsor emails are *Lead only*, the leaver's notes are *Private*, and their secrets were redacted on arrival.
 2. **Reconstruct** — run the pipeline and watch each stage: permission gate → extraction → quote verification → merge → conflict detection → coverage checklist → questions.
 3. **Gap Interview** — answer as the leaver, e.g. which of two conflicting sponsor-demo dates is right. Answers become dated, cited *leaver testimony*.
 4. **Review** — as the reviewer, open any source chip to see the exact highlighted evidence, then approve, edit or reject. *Approve all verified* is a quick start.
-5. **Handover** — publish, then open the successor view: owners, open work, risks, decision timeline and a Day 1 / Week 1 plan — with the Lead-only and Private content provably absent. Acknowledge sections or flag a wrong claim; the flag appears back in Review.
+5. **Handover** — publish, then open the successor view: owners, open work, risks, decision timeline and a Day 1 / Week 1 plan — with the Lead-only and Private content left out (checked by the leak tests). Acknowledge sections or flag a wrong claim; the flag appears back in Review.
 
 You can also create your own project, upload files (WhatsApp `.txt`, Discord/Slack `.json`, PDF, DOCX, Markdown, CSV) or import any **public GitHub repository**.
 
@@ -138,6 +148,7 @@ Full steps, Render alternative and troubleshooting: [docs/DEPLOY.md](docs/DEPLOY
 | Browser end-to-end | `node tests/e2e.mjs` | 27 checks over the full judge journey in Chromium, including leak checks on the successor page, share link in a fresh browser, upload flow, role change, flags |
 | AI path over HTTP | `node tests/e2e-ai.mjs` | 7 checks with a mock OpenAI-compatible model server |
 | Round 3 unit + API | `npm test` | 14 tests: Ask Baton grounding, capture parsing, signatures, Supabase adapter, the whole workspace API |
+| Trust challenge | `npm run test:trust` | 12 cases: 4 true facts and 8 planted model mistakes (invented quote, reversed meaning, wrong date, wrong amount, wrong person, hidden source, guess as fact); all 8 caught |
 | Row-Level Security | `npm run test:rls` | 48 checks of `supabase/schema.sql` run as real database roles on PostgreSQL |
 | Round 3 browser journey | `node tests/e2e-round3.mjs` | 35 checks: account, workspace, invite, signed Discord, Slack and GitHub calls, inbox, publish, share link, Ask Baton, revoke, Member view |
 

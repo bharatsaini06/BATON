@@ -17,7 +17,7 @@ import { HttpError, json, limit, parse, readRaw, type Route } from "./http";
 import { workspaceRoutes, workspaceHealth, resolvePackage, recordEvent } from "./workspace";
 export { HttpError };
 
-export const VERSION = "2.3.0";
+export const VERSION = "2.4.0";
 
 // ---------------------------------------------------------------- helpers
 

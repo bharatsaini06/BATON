@@ -5,7 +5,7 @@
 //   inferred  = anything else that still has some evidence
 import type { Candidate } from "./extract-rules";
 import type { Chunk, Claim, Engine, Evidence } from "./types";
-import { normalizeForMatch, normalizeLoose, tokens, uid, nowIso, jaccard } from "./text";
+import { normalizeForMatch, normalizeLoose, tokens, uid, nowIso, jaccard, findDates } from "./text";
 import type { PeopleIndex } from "./people";
 
 export interface QuoteMatch { match: Evidence["match"]; chunk?: Chunk }
@@ -47,6 +47,44 @@ export function locateQuote(quote: string, chunkId: string, visible: Map<string,
   return { match: "none", chunk: cited };
 }
 
+// ---- value checks: a matching quote is not enough if the statement changes what the source says
+const NEG = /\b(?:not|no|never|none|nobody|nothing|neither|nor|without|cannot|can't|won't|didn't|doesn't|don't|isn't|aren't|wasn't|weren't|hasn't|haven't|hadn't|shouldn't|wouldn't|couldn't|mustn't|cancel(?:led|ed)?|reject(?:ed)?)\b|n't\b/i;
+export const hasNegation = (t: string) => NEG.test(t.replace(/[’‘]/g, "'"));
+
+/** Money amounts written with a currency or a size word, as plain numbers (₹75,000, Rs 40k, 1.5 lakh, $200). */
+export function findAmounts(text: string): number[] {
+  const out: number[] = [];
+  const t = text.replace(/[’]/g, "'");
+  const re = /(?:(₹|rs\.?|inr|\$|usd)\s?(\d[\d,]*(?:\.\d+)?)\s*(k|lakh|lakhs|lac|crore|cr)?)|(?:\b(\d[\d,]*(?:\.\d+)?)\s*(k|lakh|lakhs|lac|crore|cr|rupees|inr)\b)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(t))) {
+    const num = parseFloat((m[2] || m[4] || "0").replace(/,/g, ""));
+    const unit = (m[3] || m[5] || "").toLowerCase();
+    const mult = unit === "k" ? 1e3 : /^(lakh|lakhs|lac)$/.test(unit) ? 1e5 : /^(crore|cr)$/.test(unit) ? 1e7 : 1;
+    if (num) out.push(Math.round(num * mult));
+  }
+  return out;
+}
+
+/** Dates, amounts and negation in the statement must agree with the cited source. */
+export function valuesAgree(statement: string, quote: string, chunk: Chunk): { ok: boolean; reason?: string } {
+  const src = chunk.text;
+  const year = chunk.time ? new Date(chunk.time).getUTCFullYear() : undefined;
+  const sd = findDates(statement, year), cd = findDates(src, year);
+  const md = (iso: string) => iso.slice(5);
+  for (const d of sd) {
+    if (!cd.some((c) => c.iso === d.iso || md(c.iso) === md(d.iso))) return { ok: false, reason: `Says ${d.text.trim()}, but the cited source gives a different date or none` };
+  }
+  const sa = findAmounts(statement), ca = findAmounts(src);
+  for (const a of sa) {
+    if (!ca.includes(a)) return { ok: false, reason: `Says an amount of ${a.toLocaleString("en-IN")}, which the cited source does not give` };
+  }
+  const negS = hasNegation(statement), negQ = hasNegation(quote), negC = hasNegation(src);
+  if (negS && !negC) return { ok: false, reason: "The statement is negative, but the cited source is not: the meaning may have been reversed" };
+  if (negQ && !negS) return { ok: false, reason: "The quoted words are negative, but the statement is not: the meaning may have been reversed" };
+  return { ok: true };
+}
+
 /** Does the statement stay within what the evidence chunk actually says? */
 export function statementSupported(statement: string, chunk: Chunk, people: PeopleIndex): { ok: boolean; reason?: string } {
   const named = people.mentions(statement);
@@ -69,7 +107,8 @@ export function toClaim(c: Candidate, visible: Map<string, Chunk>, people: Peopl
   let statusReason = "";
   if (loc.match !== "none" && loc.chunk) {
     evidence.push({ chunkId: loc.chunk.id, sourceId: loc.chunk.sourceId, quote: c.quote, match: loc.match });
-    const support = statementSupported(c.statement, loc.chunk, people);
+    let support = statementSupported(c.statement, loc.chunk, people);
+    if (support.ok) support = valuesAgree(c.statement, c.quote, loc.chunk);
     if (c.basis === "inferred") statusReason = "Marked as an interpretation, not stated directly in the source";
     else if (!support.ok) statusReason = support.reason!;
     else {

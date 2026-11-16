@@ -77,6 +77,7 @@ Run it from the README: `git clone`, then `node dist/server.mjs` and open http:/
 3. **Real accounts and organisation-level access control — delivered.** Sign-in, workspaces, invitations, per-person roles, Postgres Row-Level Security, signed share links with expiry and revocation, and actions tied to identities.
 
 **Also completed**
+- Stronger verification: dates, money amounts and negation in a statement must agree with the cited source, so a real quote can no longer carry a changed meaning (4 of 8 planted mistakes caught before, 8 of 8 now).
 - Interface redesign around the product's idea: source papers, highlighter evidence in the status colour, blacked-out redactions, review stamps, a relay track for the steps.
 - Round 2 limitations closed: projects now open on any device through a workspace; identity comes from the account instead of being typed per step; share links are signed and revocable.
 - Reliability fixes found by testing: expired sign-in no longer leaves the workspace loading forever; *How it works* opens fully on screen; a failing page shows a message instead of a blank screen; double-clicks cannot publish or create twice; empty or unreadable uploads are refused with a reason; layout fixed at phone width.
@@ -84,11 +85,13 @@ Run it from the README: `git clone`, then `node dist/server.mjs` and open http:/
 
 ## 7. Testing details
 
-- **156 automated checks pass on the final build (2.3.0):** 20 core unit and integration tests, 5 AI-provider contract tests, 14 Round 3 API tests, 48 Row-Level Security checks run as real database roles on PostgreSQL 16, 27 browser checks of the main journey, 7 AI-path checks with a mock model server, and 35 browser checks of the Round 3 journey (account, workspace, invite, signed Discord, Slack and GitHub calls, inbox, publish, share link, Ask Baton, revoke, Member view). TypeScript type-check is clean and no browser console errors occur.
-- **Security and privacy checks:** Lead-only and Private material never appears on a Member's handover or in Ask Baton's answers; the AI prompt for a Member never contains Lead-only or Private text; altered, expired, forged or revoked share links are refused; a Member cannot list projects, add connectors or create links; outsiders and removed members get no rows from the database.
-- **Failure cases:** invented quotes are downgraded to Inferred; prompt-injection text in a source cannot change a status; invalid model output is retried and then handled by the rules engine; model outage falls back with a visible warning; malformed requests return 400.
+- **Trust challenge (planted mistakes):** a mock model proposes 12 facts about the sample project, 4 true and 8 with typical model mistakes (invented quote, meaning reversed by adding or dropping "not", wrong date, wrong amount, wrong person, a quote from a hidden source, a guess stated as fact). The previous verifier caught 4 of 8; the final build catches 8 of 8 and still verifies all 4 true facts. On the full sample the new checks changed no correct claim. This is a synthetic evaluation, not a user study.
+- **157 automated checks pass on the final build (2.4.0):** 20 core unit and integration tests, 5 AI-provider contract tests, 14 Round 3 API tests, the trust challenge, 48 Row-Level Security checks run as real database roles on PostgreSQL 16, 27 browser checks of the main journey, 7 AI-path checks with a mock model server, and 35 browser checks of the Round 3 journey (account, workspace, invite, signed Discord, Slack and GitHub calls, inbox, publish, share link, Ask Baton, revoke, Member view). TypeScript type-check is clean and no browser console errors occur.
+- **Security and privacy checks (automated):** in every test run, Lead-only and Private text did not appear on a Member's handover, in Ask Baton's answers or in the AI prompt sent for a Member; altered, expired, forged and revoked share links were refused; a Member could not list projects, add connectors or create links; outsiders and removed members got no rows from the database.
+- **Failure cases:** invented quotes are downgraded to Inferred; injected instructions inside a source did not change any status, because statuses are set by code; invalid model output is retried and then handled by the rules engine; model outage falls back with a visible warning; malformed requests return 400.
 - **Judge-style robustness pass:** wrong addresses, empty projects, empty and unsupported files, refresh on every step, double-clicks on every main action, blank and long questions, wrong password, expired sign-in and phone width. Every problem found was fixed and the fixes are covered by tests.
 - **Live check** on the deployed site with Supabase, Discord, Slack, GitHub and Gemini connected.
+- GitHub Actions runs the type-check, unit tests and build on every push.
 - Full tables: `docs/TESTING.md` in the repository.
 
 ## 8. Product roadmap and future development plan

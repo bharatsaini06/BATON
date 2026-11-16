@@ -5318,6 +5318,38 @@ function locateQuote(quote, chunkId, visible) {
   }
   return { match: "none", chunk: cited };
 }
+var NEG = /\b(?:not|no|never|none|nobody|nothing|neither|nor|without|cannot|can't|won't|didn't|doesn't|don't|isn't|aren't|wasn't|weren't|hasn't|haven't|hadn't|shouldn't|wouldn't|couldn't|mustn't|cancel(?:led|ed)?|reject(?:ed)?)\b|n't\b/i;
+var hasNegation = (t) => NEG.test(t.replace(/[’‘]/g, "'"));
+function findAmounts(text) {
+  const out = [];
+  const t = text.replace(/[’]/g, "'");
+  const re = /(?:(₹|rs\.?|inr|\$|usd)\s?(\d[\d,]*(?:\.\d+)?)\s*(k|lakh|lakhs|lac|crore|cr)?)|(?:\b(\d[\d,]*(?:\.\d+)?)\s*(k|lakh|lakhs|lac|crore|cr|rupees|inr)\b)/gi;
+  let m;
+  while (m = re.exec(t)) {
+    const num = parseFloat((m[2] || m[4] || "0").replace(/,/g, ""));
+    const unit = (m[3] || m[5] || "").toLowerCase();
+    const mult = unit === "k" ? 1e3 : /^(lakh|lakhs|lac)$/.test(unit) ? 1e5 : /^(crore|cr)$/.test(unit) ? 1e7 : 1;
+    if (num) out.push(Math.round(num * mult));
+  }
+  return out;
+}
+function valuesAgree(statement, quote, chunk) {
+  const src = chunk.text;
+  const year = chunk.time ? new Date(chunk.time).getUTCFullYear() : void 0;
+  const sd = findDates(statement, year), cd = findDates(src, year);
+  const md = (iso) => iso.slice(5);
+  for (const d of sd) {
+    if (!cd.some((c) => c.iso === d.iso || md(c.iso) === md(d.iso))) return { ok: false, reason: `Says ${d.text.trim()}, but the cited source gives a different date or none` };
+  }
+  const sa = findAmounts(statement), ca = findAmounts(src);
+  for (const a of sa) {
+    if (!ca.includes(a)) return { ok: false, reason: `Says an amount of ${a.toLocaleString("en-IN")}, which the cited source does not give` };
+  }
+  const negS = hasNegation(statement), negQ = hasNegation(quote), negC = hasNegation(src);
+  if (negS && !negC) return { ok: false, reason: "The statement is negative, but the cited source is not: the meaning may have been reversed" };
+  if (negQ && !negS) return { ok: false, reason: "The quoted words are negative, but the statement is not: the meaning may have been reversed" };
+  return { ok: true };
+}
 function statementSupported(statement, chunk, people) {
   const named = people.mentions(statement);
   const inChunk = /* @__PURE__ */ new Set([...people.mentions(chunk.text), ...chunk.author ? [people.resolve(chunk.author) || chunk.author] : []]);
@@ -5338,7 +5370,8 @@ function toClaim(c, visible, people, engine) {
   let statusReason = "";
   if (loc.match !== "none" && loc.chunk) {
     evidence.push({ chunkId: loc.chunk.id, sourceId: loc.chunk.sourceId, quote: c.quote, match: loc.match });
-    const support = statementSupported(c.statement, loc.chunk, people);
+    let support = statementSupported(c.statement, loc.chunk, people);
+    if (support.ok) support = valuesAgree(c.statement, c.quote, loc.chunk);
     if (c.basis === "inferred") statusReason = "Marked as an interpretation, not stated directly in the source";
     else if (!support.ok) statusReason = support.reason;
     else {
@@ -7188,7 +7221,7 @@ function connectorView(r, origin) {
 }
 
 // server/handler.ts
-var VERSION = "2.3.0";
+var VERSION = "2.4.0";
 function securityHeaders(res) {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
