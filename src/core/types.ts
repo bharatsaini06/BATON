@@ -183,8 +183,8 @@ export interface SharePackage {
 
 export interface AskedQuestion { id: string; question: string; by: string; at: string; found: boolean }
 
-/** A knowledge item captured live by a connector (Discord, GitHub webhook). */
-export type CaptureSource = "discord" | "github";
+/** A knowledge item captured live by a connector (Discord, Slack, GitHub webhook). */
+export type CaptureSource = "discord" | "slack" | "github";
 export interface CaptureEvent {
   id: string;
   orgId: string;

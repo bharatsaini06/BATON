@@ -6154,6 +6154,10 @@ function verifyGithub(secret, rawBody, header) {
   if (!header || !header.startsWith("sha256=")) return false;
   return safeEqual(header, "sha256=" + hmac(secret, rawBody, "hex"));
 }
+function verifySlack(secret, timestamp, rawBody, signature, now2 = Date.now()) {
+  if (!timestamp || !signature || Math.abs(now2 / 1e3 - Number(timestamp)) > 300) return false;
+  return safeEqual(signature, "v0=" + hmac(secret, `v0:${timestamp}:${rawBody}`, "hex"));
+}
 
 // server/db.ts
 var envSecret = () => process.env.SESSION_SECRET || process.env.SHARE_LINK_SECRET || "";
@@ -6683,7 +6687,7 @@ var AccessZ = external_exports.enum(["member", "lead"]);
 function workspaceHealth() {
   return {
     accounts: { mode: getBackend().db.mode, rls: getBackend().db.mode === "supabase", serviceKey: getBackend().db.mode === "builtin" || !!supabaseConfig()?.service },
-    connectors: { discord: !!process.env.DISCORD_PUBLIC_KEY, discordAppId: process.env.DISCORD_APP_ID || process.env.DISCORD_APPLICATION_ID || null, discordCanRegister: !!((process.env.DISCORD_APP_ID || process.env.DISCORD_APPLICATION_ID) && process.env.DISCORD_BOT_TOKEN) },
+    connectors: { discord: !!process.env.DISCORD_PUBLIC_KEY, discordAppId: process.env.DISCORD_APP_ID || process.env.DISCORD_APPLICATION_ID || null, discordCanRegister: !!((process.env.DISCORD_APP_ID || process.env.DISCORD_APPLICATION_ID) && process.env.DISCORD_BOT_TOKEN), slack: !!process.env.SLACK_SIGNING_SECRET },
     signedLinks: true
   };
 }
@@ -6818,7 +6822,7 @@ var InviteBody = external_exports.object({ email: Email, role: OrgRoleZ });
 var ProjectBody = external_exports.object({ orgId: external_exports.string().max(80), project: external_exports.any() });
 var PublishBody = external_exports.object({ project: external_exports.any(), previous: external_exports.any().optional() });
 var LinkBody = external_exports.object({ days: external_exports.number().int().min(1).max(365).nullable(), label: external_exports.string().trim().max(80).optional() });
-var ConnectorBody = external_exports.object({ kind: external_exports.enum(["discord", "github"]), label: external_exports.string().trim().max(80).optional(), projectId: external_exports.string().max(80).optional(), defaultAccess: AccessZ.default("member"), repo: external_exports.string().trim().max(140).optional() });
+var ConnectorBody = external_exports.object({ kind: external_exports.enum(["discord", "slack", "github"]), label: external_exports.string().trim().max(80).optional(), projectId: external_exports.string().max(80).optional(), defaultAccess: AccessZ.default("member"), repo: external_exports.string().trim().max(140).optional() });
 var CaptureUpdate = external_exports.object({ ids: external_exports.array(external_exports.string().max(80)).min(1).max(200), status: external_exports.enum(["new", "added", "dismissed"]), projectId: external_exports.string().max(80).optional() });
 var AskBody = external_exports.object({ id: external_exports.string().max(140), question: external_exports.string().trim().min(3).max(500), by: external_exports.string().trim().max(100).optional(), package: external_exports.any().optional() });
 var ID = "([\\w-]{3,120})";
@@ -7049,7 +7053,7 @@ var workspaceRoutes = [
     const m = await me(c);
     await need(m, c.params[0], "lead");
     const rows = await getBackend().db.select("connectors", { org_id: c.params[0] }, { as: m.token, order: "created_at.asc" });
-    json(c.res, 200, { connectors: rows.filter((r) => r.kind === "discord" || r.kind === "github").map((r) => connectorView(r, c.origin)) });
+    json(c.res, 200, { connectors: rows.filter((r) => r.kind === "discord" || r.kind === "slack" || r.kind === "github").map((r) => connectorView(r, c.origin)) });
   }),
   R("POST", `orgs/${ID}/connectors`, async (c) => {
     const m = await me(c);
@@ -7101,7 +7105,7 @@ var workspaceRoutes = [
     if (status && ["new", "added", "dismissed"].includes(status)) filter.status = status;
     const rows = await getBackend().db.select("capture_events", filter, { as: m.token, order: "created_at.desc", limit: 300 });
     const project = c.query.get("project");
-    json(c.res, 200, { events: rows.map(toEvent).filter((e) => (e.source === "discord" || e.source === "github") && canSeeAccess(role, e.access) && (!project || !e.projectId || e.projectId === project)) });
+    json(c.res, 200, { events: rows.map(toEvent).filter((e) => canSeeAccess(role, e.access) && (!project || !e.projectId || e.projectId === project)) });
   }),
   R("POST", `orgs/${ID}/capture/update`, async (c) => {
     const m = await me(c);
@@ -7134,6 +7138,22 @@ var workspaceRoutes = [
     const author = i.member?.nick || i.member?.user?.global_name || i.member?.user?.username || "Discord user";
     const e = await capture(conn, "discord", { ...item, author }, `discord:${i.id}`, o.visibility === "lead" || o.visibility === "member" ? o.visibility : void 0);
     reply(confirm(e) + (sub?.name === "task" && o.due && !e.due ? " (The due date was ignored \u2014 use YYYY-MM-DD.)" : ""));
+  }),
+  R("POST", "hooks/slack", async (c) => {
+    const secret = process.env.SLACK_SIGNING_SECRET;
+    if (!secret) throw new HttpError(503, "SLACK_SIGNING_SECRET is not set on the server.");
+    const raw = await c.raw();
+    if (!verifySlack(secret, String(c.req.headers["x-slack-request-timestamp"] || ""), raw, String(c.req.headers["x-slack-signature"] || ""))) throw new HttpError(401, "Bad request signature");
+    const f = new URLSearchParams(raw);
+    const reply = (text2) => json(c.res, 200, { response_type: "ephemeral", text: text2 });
+    const text = (f.get("text") || "").trim(), team = f.get("team_id") || "";
+    const link = /^link\s+(\S+)/i.exec(text);
+    if (link) return reply(await linkChat("slack", link[1], team, f.get("team_domain") || "Slack workspace"));
+    const [conn] = await getBackend().db.select("connectors", { kind: "slack", external_id: team });
+    if (!conn) return reply("This Slack workspace is not linked to Baton yet. In Baton open Workspace \u2192 Connectors, add a Slack connector, then run `/baton link <code>`.");
+    const item = parseCommand(text);
+    if (!item) return reply("Nothing to log. " + HELP);
+    reply(confirm(await capture(conn, "slack", { ...item, author: f.get("user_name") || "Slack user" }, `slack:${f.get("trigger_id") || uuid()}`)));
   }),
   R("POST", `hooks/github/${ID}`, async (c) => {
     limit(c.req, "ghhook", 600);
@@ -7168,7 +7188,7 @@ function connectorView(r, origin) {
 }
 
 // server/handler.ts
-var VERSION = "2.2.0";
+var VERSION = "2.3.0";
 function securityHeaders(res) {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");

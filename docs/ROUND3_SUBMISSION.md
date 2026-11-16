@@ -26,7 +26,7 @@ Run it from the README: `git clone`, then `node dist/server.mjs` and open http:/
 1. File upload: WhatsApp `.txt` export (Android and iOS), Discord and Slack `.json` exports, PDF, DOCX, Markdown, TXT and task-board CSV; PDF and DOCX are read in the browser.
 2. Paste text, and import a public GitHub repository (README, issues, pull requests, comments, commits).
 3. Work log: decisions with reasons, risks, tasks and contacts logged while the work happens.
-4. Live capture from Discord: `/baton decision | risk | task | owner | note`, verified by Ed25519 signature.
+4. Live capture from Discord and Slack: `/baton decision | risk | task | owner | note`, verified by Ed25519 (Discord) and the Slack signing secret.
 5. Live capture from GitHub: a signed webhook logs issue assignments, merged pull requests and `Decision:` / `Risk:` lines.
 6. Capture inbox for the workspace; captured items join a project's work log with one click.
 
@@ -64,7 +64,7 @@ Run it from the README: `git clone`, then `node dist/server.mjs` and open http:/
 - **Backend:** one TypeScript HTTP API that runs as a Node.js server or a Vercel serverless function: ingestion, GitHub import, reconstruction streamed as NDJSON, Gap Interview, publishing, share links, accounts, workspaces, connectors and Ask Baton. Every input is validated with zod; per-IP rate limits; strict security headers.
 - **AI layer:** provider adapters for Gemini, Anthropic and OpenAI-compatible APIs, chosen by environment variable. The model receives only permitted, redacted, numbered chunks and must return each claim with an exact quote and chunk id. The model never decides whether a claim is true: code finds the quote in the stored text, checks that named people appear in it and that the statement stays within it. Ask Baton gives the model only the approved facts of that handover and keeps a sentence only if its cited facts support it.
 - **Accounts and access control:** Supabase Auth and Postgres. Requests for a signed-in person reach the database with that person's own token, so Row-Level Security policies decide what they can read or write. The service key is used only after the server has verified a webhook signature, an invitation or a signed link. Without Supabase, built-in accounts apply the same role checks.
-- **Connectors:** Discord interactions verified with Ed25519; GitHub webhooks with HMAC-SHA256 and a per-connector secret; duplicate deliveries ignored; text redacted before storage.
+- **Connectors:** Discord interactions verified with Ed25519; Slack slash commands with the Slack signing secret and a five-minute window; GitHub webhooks with HMAC-SHA256 and a per-connector secret; duplicate deliveries ignored; text redacted before storage.
 - **Share links:** HMAC-signed tokens carrying link id, handover id and expiry, checked on every open together with revocation in the database.
 - **Storage:** Postgres (Supabase) for workspaces; Upstash Redis or JSON files for published packages.
 - **Hosting:** Vercel, with the built app committed so the deployment needs no build step.
@@ -72,7 +72,7 @@ Run it from the README: `git clone`, then `node dist/server.mjs` and open http:/
 ## 6. Improvements completed after Round 2
 
 **The three named in Round 2**
-1. **Live connectors with continuous capture — delivered.** Discord `/baton` commands and a signed GitHub webhook feed a workspace Capture inbox; items become evidence through the same permission gate and quote check. Two differences from the Round 2 wording: (a) a Slack command was built and passed signed-request tests but could not be verified against a live Slack workspace in the window, so it was removed before submission rather than shipped half-verified (Slack exports can still be uploaded); (b) capture uses signed commands and webhooks instead of OAuth tokens, which is narrower access: Baton never receives channel history and stores no third-party token.
+1. **Live connectors with continuous capture — delivered.** The same `/baton` command works in a Discord server and a Slack workspace, and a signed GitHub webhook logs repository work; everything lands in a workspace Capture inbox and becomes evidence through the same permission gate and quote check. One difference from the Round 2 wording: capture uses signed commands and webhooks instead of OAuth tokens. This is narrower access: Baton receives only the `/baton` commands and repository events it is sent, never channel history, and stores no third-party token.
 2. **Ask Baton, grounded Q&A — delivered.** Answers only from approved claims of the role-filtered handover, citations on every sentence, unsupported sentences removed by code, "Not in the handover" when there is no evidence.
 3. **Real accounts and organisation-level access control — delivered.** Sign-in, workspaces, invitations, per-person roles, Postgres Row-Level Security, signed share links with expiry and revocation, and actions tied to identities.
 
@@ -84,17 +84,17 @@ Run it from the README: `git clone`, then `node dist/server.mjs` and open http:/
 
 ## 7. Testing details
 
-- **153 automated checks pass on the final build (2.2.0):** 20 core unit and integration tests, 5 AI-provider contract tests, 14 Round 3 API tests, 48 Row-Level Security checks run as real database roles on PostgreSQL 16, 27 browser checks of the main journey, 7 AI-path checks with a mock model server, and 32 browser checks of the Round 3 journey (account, workspace, invite, signed Discord and GitHub calls, inbox, publish, share link, Ask Baton, revoke, Member view). TypeScript type-check is clean and no browser console errors occur.
+- **156 automated checks pass on the final build (2.3.0):** 20 core unit and integration tests, 5 AI-provider contract tests, 14 Round 3 API tests, 48 Row-Level Security checks run as real database roles on PostgreSQL 16, 27 browser checks of the main journey, 7 AI-path checks with a mock model server, and 35 browser checks of the Round 3 journey (account, workspace, invite, signed Discord, Slack and GitHub calls, inbox, publish, share link, Ask Baton, revoke, Member view). TypeScript type-check is clean and no browser console errors occur.
 - **Security and privacy checks:** Lead-only and Private material never appears on a Member's handover or in Ask Baton's answers; the AI prompt for a Member never contains Lead-only or Private text; altered, expired, forged or revoked share links are refused; a Member cannot list projects, add connectors or create links; outsiders and removed members get no rows from the database.
 - **Failure cases:** invented quotes are downgraded to Inferred; prompt-injection text in a source cannot change a status; invalid model output is retried and then handled by the rules engine; model outage falls back with a visible warning; malformed requests return 400.
 - **Judge-style robustness pass:** wrong addresses, empty projects, empty and unsupported files, refresh on every step, double-clicks on every main action, blank and long questions, wrong password, expired sign-in and phone width. Every problem found was fixed and the fixes are covered by tests.
-- **Live check** on the deployed site with Supabase, Discord, GitHub and Gemini connected.
+- **Live check** on the deployed site with Supabase, Discord, Slack, GitHub and Gemini connected.
 - Full tables: `docs/TESTING.md` in the repository.
 
 ## 8. Product roadmap and future development plan
 
 - **Next 30 days:** pilot with two or three college clubs during end-of-semester handovers; password reset and invitation emails; OCR for scanned PDFs; Hindi and Hinglish in the rules engine; Google Drive and Notion import; more conflict types (amounts, reversed decisions).
-- **3 months:** a knowledge-risk view showing work only one person can explain; weekly capture reminders in Discord; Slack and Microsoft Teams as OAuth apps with channel-scoped history; Jira, Linear and Trello sync; encrypted sync for Private sources.
+- **3 months:** a knowledge-risk view showing work only one person can explain; weekly capture reminders in Discord and Slack; Microsoft Teams, and channel-scoped OAuth for Slack and Discord history; Jira, Linear and Trello sync; encrypted sync for Private sources.
 - **6 months:** Ask Baton across every approved handover in a workspace (still role-filtered); Google Workspace sign-in for colleges; a self-hosted package; role templates (treasurer, tech lead, event head).
 - **How we will measure it:** time for a successor's first useful contribution; share of questions answered with a source vs "not in the handover"; share of claims Verified before review; flags raised after handover.
 - **What will not change:** code, not the model, decides Verified; the permission gate runs before any AI call; a person approves every claim.

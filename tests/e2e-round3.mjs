@@ -19,7 +19,7 @@ rmSync(DATA, { recursive: true, force: true });
 let failures = 0;
 const ok = (cond, msg) => { console.log(`${cond ? "PASS" : "FAIL"}  ${msg}`); if (!cond) failures++; };
 const keys = crypto.generateKeyPairSync("ed25519");
-const env = { ...process.env, PORT: String(PORT), DATA_DIR: DATA, AI_PROVIDER: "none", BATON_NO_RATE_LIMIT: "1", SESSION_SECRET: "e2e-secret-e2e-secret-e2e-secret", DISCORD_PUBLIC_KEY: keys.publicKey.export({ format: "der", type: "spki" }).subarray(-32).toString("hex") };
+const env = { ...process.env, PORT: String(PORT), DATA_DIR: DATA, AI_PROVIDER: "none", BATON_NO_RATE_LIMIT: "1", SESSION_SECRET: "e2e-secret-e2e-secret-e2e-secret", SLACK_SIGNING_SECRET: "e2e-slack-signing-secret", DISCORD_PUBLIC_KEY: keys.publicKey.export({ format: "der", type: "spki" }).subarray(-32).toString("hex") };
 for (const k of ["SUPABASE_URL", "UPSTASH_REDIS_REST_URL", "KV_REST_API_URL", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"]) delete env[k];
 const server = spawn(process.execPath, ["dist/server.mjs"], { cwd: root, env, stdio: ["ignore", "pipe", "pipe"] });
 server.stderr.on("data", (d) => process.stderr.write("[server] " + d));
@@ -72,9 +72,21 @@ try {
   await page.getByRole("button", { name: /^Add GitHub/ }).click();
   await page.getByRole("dialog").getByRole("button", { name: /Add connec/ }).click();
   await page.getByText("Payload URL").first().waitFor();
+  await page.getByRole("button", { name: /^Add Slack/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /Add connec/ }).click();
+  await page.getByText(/\/baton link BTN-/).first().waitFor();
   await shot("r3-03-connectors");
   const conns = (await api("GET", `/api/orgs/${orgId}/connectors`)).j.connectors;
-  const dc = conns.find((c) => c.kind === "discord"), gh = conns.find((c) => c.kind === "github");
+  const dc = conns.find((c) => c.kind === "discord"), gh = conns.find((c) => c.kind === "github"), sl = conns.find((c) => c.kind === "slack");
+  const slack = async (text, secret = "e2e-slack-signing-secret") => {
+    const raw = new URLSearchParams({ team_id: "T-E2E", team_domain: "codecraft", user_name: "dev", text, trigger_id: "t" + Math.random() }).toString();
+    const ts = String(Math.floor(Date.now() / 1000));
+    const r = await fetch(`${BASE}/api/hooks/slack`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "x-slack-request-timestamp": ts, "x-slack-signature": "v0=" + crypto.createHmac("sha256", secret).update(`v0:${ts}:${raw}`).digest("hex") }, body: raw });
+    return { status: r.status, j: await r.json().catch(() => ({})) };
+  };
+  ok((await slack("decision x", "wrong-secret")).status === 401, "Slack call signed with the wrong secret is rejected");
+  ok(/Linked/.test((await slack(`link ${sl.linkCode}`)).j.text || ""), "Slack workspace linked with /baton link");
+  ok(/Logged/.test((await slack("note Certificates: Dev owns the bulk export from now")).j.text || ""), "/baton note is logged from Slack");
   const discord = async (name, options, tamper = false) => {
     const raw = JSON.stringify({ type: 2, guild_id: "guild-1", channel_id: "chan-1", member: { user: { id: "u1", username: "riya", global_name: "Riya Sharma" } }, data: { name: "baton", options: [{ type: 1, name, options: Object.entries(options).map(([k, v]) => ({ name: k, type: 3, value: v })) }] } });
     const ts = String(Math.floor(Date.now() / 1000));
@@ -93,9 +105,9 @@ try {
   ok((await ghCall(gh.secret, "d-1")).status === 200, "signed GitHub webhook is accepted");
 
   await page.getByRole("radio", { name: /Capture inbox/ }).click();
-  await page.locator(".capture-item").nth(1).waitFor({ timeout: 15000 });
+  await page.locator(".capture-item").nth(2).waitFor({ timeout: 15000 });
   const inbox = await page.locator(".capture-list").innerText();
-  ok(/leaderboard read-only/.test(inbox) && /Razorpay webhook/.test(inbox), "capture inbox shows the Discord and GitHub items");
+  ok(/leaderboard read-only/.test(inbox) && /Razorpay webhook/.test(inbox) && /bulk export/.test(inbox), "capture inbox shows the Discord, GitHub and Slack items");
   await shot("r3-04-capture-inbox");
 
   // ---- sample project into the workspace, captured items into the work log
@@ -106,7 +118,7 @@ try {
   await page.getByText(/CodeCraft Club · synced/).waitFor();
   ok(true, "project saved to the workspace");
   await page.getByRole("radio", { name: /Live capture/ }).click();
-  await page.getByRole("button", { name: /Add all 2 to the work log/ }).click();
+  await page.getByRole("button", { name: /Add all 3 to the work log/ }).click();
   await page.getByText("No new captured items").waitFor();
   ok(true, "captured items added to the project's work log");
   await shot("r3-05-live-capture");

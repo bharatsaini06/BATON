@@ -76,7 +76,7 @@ Private sources and Private work-log entries are removed in the browser before a
 
 **Signed share links.** A link is `/h/<package>?k=<token>`, where the token is an HMAC-SHA256-signed payload (link id, package id, expiry). Opening it checks the signature, the expiry, that the link row still exists for that package and that it has not been revoked, then counts the open. A workspace handover opens only through such a link or for a signed-in member whose role allows it.
 
-**Live connectors.** `POST /api/hooks/discord` (Ed25519 signature over timestamp + raw body), `POST /api/hooks/github/:connector` (HMAC-SHA256 with the connector's secret, duplicate deliveries ignored). A chat server is tied to one workspace with a one-time link code. Text is redacted on arrival and stored as a capture event with an access tag. Adding an event to a project turns it into a work-log entry, so it passes the permission gate, extraction and quote verification like any other source.
+**Live connectors.** `POST /api/hooks/discord` (Ed25519 signature over timestamp + raw body), `POST /api/hooks/github/:connector` (HMAC-SHA256 with the connector's secret, duplicate deliveries ignored), `POST /api/hooks/slack` (Slack signing secret, five-minute window). A chat server is tied to one workspace with a one-time link code. Text is redacted on arrival and stored as a capture event with an access tag. Adding an event to a project turns it into a work-log entry, so it passes the permission gate, extraction and quote verification like any other source.
 
 **Ask Baton.** `POST /api/ask` resolves the handover exactly as the successor view does (signed link, member, or demo), so the question is answered from the role-filtered package only. Steps: keyword retrieval with stemming over approved claims → if nothing is strongly related, answer "not in the handover" → otherwise the model receives only the numbered facts and must return sentences with fact numbers → code keeps a sentence only if its cited facts contain its content words and names → if nothing survives, the approved facts are shown as written. Conflicting and missing items are reported as unresolved, never as settled. Each question is recorded for the reviewer.
 
@@ -88,7 +88,7 @@ Private sources and Private work-log entries are removed in the browser before a
 | POST | `/api/orgs/:id/publish` | Publish with the signed-in account as approver |
 | GET/POST | `/api/packages/:id/links`; POST `/api/links/:id/revoke` | Signed share links |
 | GET/POST/DELETE | `/api/orgs/:id/connectors`, `/api/connectors/:id` | Connectors |
-| POST | `/api/hooks/discord`, `/api/hooks/github/:id` | Inbound, signature-verified |
+| POST | `/api/hooks/discord`, `/api/hooks/github/:id`, `/api/hooks/slack` | Inbound, signature-verified |
 | GET/POST | `/api/orgs/:id/capture`, `…/capture/update` | Capture inbox |
 | POST | `/api/ask` | Ask Baton |
 

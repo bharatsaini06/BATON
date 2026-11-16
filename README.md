@@ -19,12 +19,12 @@ Built for the **CodersInPune Hackathon 2026** (HackWithPune) — challenge *Prev
 
 | # | Promised in Round 2 | What now works | Where |
 |---|---|---|---|
-| 1 | **Live connectors with continuous capture** | `/baton decision · risk · task · owner · note` from Discord, and a GitHub webhook that logs issue assignments, merged pull requests and `Decision:` / `Risk:` lines in issues, comments and commits. Every call is verified by signature (Ed25519 for Discord, HMAC-SHA256 for GitHub), secrets are redacted on arrival, and each item carries an access tag. Items land in a workspace **Capture inbox** and, once added to a project, pass the same permission gate, extraction and quote check as every other source. | Workspace → Live connectors / Capture inbox; Sources → Live capture |
+| 1 | **Live connectors with continuous capture** | `/baton decision · risk · task · owner · note` from Discord and Slack, and a GitHub webhook that logs issue assignments, merged pull requests and `Decision:` / `Risk:` lines in issues, comments and commits. Every call is verified by signature (Ed25519 for Discord, HMAC-SHA256 for GitHub and Slack), secrets are redacted on arrival, and each item carries an access tag. Items land in a workspace **Capture inbox** and, once added to a project, pass the same permission gate, extraction and quote check as every other source. | Workspace → Live connectors / Capture inbox; Sources → Live capture |
 | 2 | **Ask Baton — grounded Q&A** | A question box on the successor's handover. Answers are built only from the approved claims in that handover, each sentence carries numbered citations that open the evidence, and code checks every model sentence against the facts it cites (unsupported sentences are removed). When nothing approved covers the question Baton answers **"Not in the handover"** and the question is passed to the reviewer. Because the answer is built from the role-filtered package, withheld material cannot appear. Works with the AI model or, without a key, by showing the matching approved facts. | Successor view → Ask Baton |
 | 3 | **Real accounts and organisation access control** | Sign-up and sign-in, workspaces, invitation links, roles per person (Member / Lead / Owner). Workspace data lives in Postgres with **Row-Level Security** (`supabase/schema.sql`, 48 policy checks on a real PostgreSQL). Share links are signed, can expire, can be revoked, and count opens. Publishing records the signed-in account as approver; acknowledgements, flags and questions carry the account's name. | Sign in → Workspace; Handover step → Signed share links |
 
 **What changed from the Round 2 wording, stated plainly:**
-- *"A Slack/Discord bot"* — the Discord bot is live. A Slack command was also built and passed signed-request tests, but it could not be checked against a live Slack workspace inside the window, so it was **removed before submission** rather than shipped half-verified. Slack export files can still be uploaded as sources.
+- *"A Slack/Discord bot"* — both are delivered: the same `/baton` command works in a Discord server and in a Slack workspace.
 - *"Scoped read-only OAuth"* — capture uses signed slash commands and signed webhooks instead of OAuth tokens. This is narrower access than OAuth: Baton receives only the `/baton` commands and the repository events it is sent, never channel history, and stores no third-party token.
 
 ### Other work after Round 2
@@ -139,7 +139,7 @@ Full steps, Render alternative and troubleshooting: [docs/DEPLOY.md](docs/DEPLOY
 | AI path over HTTP | `node tests/e2e-ai.mjs` | 7 checks with a mock OpenAI-compatible model server |
 | Round 3 unit + API | `npm test` | 14 tests: Ask Baton grounding, capture parsing, signatures, Supabase adapter, the whole workspace API |
 | Row-Level Security | `npm run test:rls` | 48 checks of `supabase/schema.sql` run as real database roles on PostgreSQL |
-| Round 3 browser journey | `node tests/e2e-round3.mjs` | 32 checks: account, workspace, invite, signed Discord and GitHub calls, inbox, publish, share link, Ask Baton, revoke, Member view |
+| Round 3 browser journey | `node tests/e2e-round3.mjs` | 35 checks: account, workspace, invite, signed Discord, Slack and GitHub calls, inbox, publish, share link, Ask Baton, revoke, Member view |
 
 Results and failure cases: [docs/TESTING.md](docs/TESTING.md).
 
@@ -175,7 +175,6 @@ Results and failure cases: [docs/TESTING.md](docs/TESTING.md).
 
 - Raw sources tagged **Private** never leave the author's browser, so they are not available on another device.
 - Connectors use signed slash commands and webhooks, not OAuth: the bot receives only `/baton` commands, never the channel history. Reading past history still needs an export or the GitHub import.
-- Slack is not offered as a live connector: the team chose Discord and GitHub. Slack export files (`.json`) can still be uploaded as sources.
 - Without Supabase variables the app uses built-in accounts (scrypt password hashes) in the package store; the same role checks apply, but Row-Level Security applies only in Supabase mode.
 - There is no password-reset email and no single sign-on.
 - The rules engine is pattern-based and English-only; conflict detection covers owners and dates.
@@ -204,7 +203,7 @@ The full plan is in [docs/ROADMAP.md](docs/ROADMAP.md). In short:
 | When | Focus |
 |---|---|
 | Next 30 days | Pilot with two or three college clubs; password reset and email invitations; OCR for scanned PDFs; Hindi and Hinglish in the rules engine; Google Drive and Notion import |
-| 3 months | Knowledge-risk view (work that only one person can explain), weekly capture reminders, Slack and Microsoft Teams as OAuth apps with channel-scoped history, Jira / Linear / Trello sync |
+| 3 months | Knowledge-risk view (work that only one person can explain), weekly capture reminders, Microsoft Teams, Slack and Discord history with channel-scoped OAuth, Jira / Linear / Trello sync |
 | 6 months | Ask across all approved handovers of a workspace, Google Workspace sign-in for colleges, a self-hosted package, and measured outcomes (time to first useful contribution, questions answered vs "not in the handover") |
 
 ## Team ATHRAV

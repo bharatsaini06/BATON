@@ -45,7 +45,18 @@ Each command accepts `visibility: member | lead`. A Lead-only item never reaches
 2. Repository → Settings → Webhooks → Add webhook: paste the Payload URL, content type `application/json`, paste the Secret, choose *Let me select individual events* → Issues, Issue comments, Pull requests, Pushes.
 3. What is captured: an issue opened, assigned, unassigned, closed or reopened; a pull request opened, merged or sent for review; and any line starting with `Decision:`, `Risk:`, `Task:`, `Owner:` or `Note:` in an issue, pull request, comment or commit message.
 
-## 4. From capture to handover
+## 4. Slack
+
+1. https://api.slack.com/apps → **Create New App** → **From scratch** → name `Baton`, choose your workspace.
+2. **Basic Information → App Credentials → Signing Secret** → set it on the host as `SLACK_SIGNING_SECRET`, then redeploy.
+3. **Slash Commands → Create New Command**: Command `/baton`, Request URL `https://<your-site>/api/hooks/slack`, short description `Log a decision, risk, task or owner to Baton`. Save.
+4. **Install App → Install to Workspace → Allow.**
+5. In Baton: Workspace → Live connectors → **Add Slack**. Run the command shown on the card in any Slack channel: `/baton link BTN-…`.
+6. Log knowledge: `/baton decision Use Razorpay because UPI is a must`, `/baton risk Domain expires in March @riya`, `/baton task Fix the webhook @arjun due 2026-12-01`, `/baton owner payments -> Riya`, `/baton note …`.
+
+Slack waits three seconds for an answer. If the first command after a quiet period reports `operation_timeout`, run it again: the server was starting.
+
+## 5. From capture to handover
 
 Captured items appear in Workspace → Capture inbox. In a workspace project open Sources → **Live capture** → *Add to the work log*. From there they are ordinary evidence: permission gate, extraction, quote verification, review and publishing all apply.
 
@@ -53,7 +64,7 @@ Captured items appear in Workspace → Capture inbox. In a workspace project ope
 
 1. `/api/health` shows `accounts.mode: "supabase"`, `connectors.discord: true`, an AI provider, and durable storage.
 2. Create an account, create a workspace, invite a second email as Member and accept in a private window.
-3. `/baton decision …` in Discord → item appears in the Capture inbox within seconds.
+3. `/baton decision …` in Discord and in Slack → items appear in the Capture inbox within seconds.
 4. Assign an issue in the GitHub repository → item appears.
 5. Load the sample → *Save to <workspace>* → Live capture → add → Reconstruct → Review → publish.
 6. Create a share link → open it in a private window → Ask Baton a question → revoke the link → reload: it no longer opens.

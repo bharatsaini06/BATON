@@ -13,7 +13,7 @@ import { createSampleProject } from "../src/core/sample";
 import { ask, retrieve, verifyAnswer } from "../src/core/ask";
 import { parseCommand, taggedLines, fromGithub, makeEvent, toLogEntry } from "../src/core/capture";
 import { worklogSources } from "../src/core/worklog";
-import { signToken, verifyToken, hashPassword, checkPassword, verifyDiscord, verifyGithub, hmac } from "../server/crypto";
+import { signToken, verifyToken, hashPassword, checkPassword, verifyDiscord, verifyGithub, verifySlack, hmac } from "../server/crypto";
 import { supabaseDb, supabaseAuth } from "../server/db";
 import type { Project, SharePackage } from "../src/core/types";
 
@@ -145,7 +145,7 @@ test("capture: secrets are redacted on arrival and items flow into the normal pi
 });
 
 // ---------------------------------------------------------------- signatures
-test("crypto: signed tokens, passwords, Discord / GitHub signatures", () => {
+test("crypto: signed tokens, passwords, Discord / GitHub / Slack signatures", () => {
   const t = signToken({ l: "link1", p: "pkg1", exp: Math.floor(Date.now() / 1000) + 60 }, "secret-secret-secret");
   assert.equal(verifyToken(t, "secret-secret-secret").ok, true);
   assert.deepEqual(verifyToken(t, "other-secret-other"), { ok: false, reason: "signature" });
@@ -167,6 +167,9 @@ test("crypto: signed tokens, passwords, Discord / GitHub signatures", () => {
   assert.equal(verifyGithub("whsec", "{}", "sha256=" + hmac("whsec", "{}", "hex")), true);
   assert.equal(verifyGithub("whsec", '{"a":1}', "sha256=" + hmac("whsec", "{}", "hex")), false);
   assert.equal(verifyGithub("whsec", "{}", undefined), false);
+  const now = Date.now(), sts = String(Math.floor(now / 1000));
+  assert.equal(verifySlack("ss", sts, "text=hi", "v0=" + hmac("ss", `v0:${sts}:text=hi`, "hex"), now), true);
+  assert.equal(verifySlack("ss", String(Math.floor(now / 1000) - 900), "text=hi", "v0=" + hmac("ss", `v0:${Math.floor(now / 1000) - 900}:text=hi`, "hex"), now), false, "replayed request");
 });
 
 // ---------------------------------------------------------------- Supabase adapter contract
@@ -215,7 +218,7 @@ const discordKeys = crypto.generateKeyPairSync("ed25519");
 before(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "baton-r3-"));
   Object.assign(process.env, {
-    DATA_DIR: dir, BATON_NO_RATE_LIMIT: "1", SESSION_SECRET: "test-secret-test-secret-test", AI_PROVIDER: "none",
+    DATA_DIR: dir, BATON_NO_RATE_LIMIT: "1", SESSION_SECRET: "test-secret-test-secret-test", AI_PROVIDER: "none", SLACK_SIGNING_SECRET: "slack-secret",
     DISCORD_PUBLIC_KEY: discordKeys.publicKey.export({ format: "der", type: "spki" }).subarray(-32).toString("hex"),
   });
   for (const k of ["SUPABASE_URL", "UPSTASH_REDIS_REST_URL", "KV_REST_API_URL", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"]) delete process.env[k];
@@ -344,7 +347,7 @@ test("workspace API: accounts, invitations, roles, projects, publishing, signed 
   assert.equal((await call("GET", `/api/orgs/${org.id}/connectors`, undefined, member.token)).status, 403);
   const gh = (await call("POST", `/api/orgs/${org.id}/connectors`, { kind: "github", repo: "techfest/portal", projectId: p.id, defaultAccess: "member" }, lead.token)).j.connector;
   const dc = (await call("POST", `/api/orgs/${org.id}/connectors`, { kind: "discord", defaultAccess: "member" }, lead.token)).j.connector;
-  assert.equal((await call("POST", `/api/orgs/${org.id}/connectors`, { kind: "slack", defaultAccess: "lead" }, owner.token)).status, 400, "Slack is not offered");
+  const sl = (await call("POST", `/api/orgs/${org.id}/connectors`, { kind: "slack", defaultAccess: "lead" }, owner.token)).j.connector;
 
   // GitHub webhook: signature required, duplicates ignored, items land in the inbox
   const hookPath = new URL(gh.webhookUrl).pathname;
@@ -373,11 +376,19 @@ test("workspace API: accounts, invitations, roles, projects, publishing, signed 
   assert.ok(!logged.j.data.content.includes("ghp_abcdef"), "secrets are redacted before storage");
   assert.match((await discord(cmd("task", { text: "Renew the domain" }, "other-guild"))).j.data.content, /not linked/, "another server cannot write into this workspace");
 
-  assert.equal((await call("POST", "/api/hooks/slack", "text=risk+x", undefined, { "content-type": "application/x-www-form-urlencoded" })).status, 404, "no Slack endpoint");
+  // Slack: signed form body
+  const slack = async (text: string) => {
+    const raw = new URLSearchParams({ team_id: "T1", team_domain: "techfest", user_name: "kabir", text, trigger_id: "t" + Math.random() }).toString();
+    const ts = String(Math.floor(Date.now() / 1000));
+    return call("POST", "/api/hooks/slack", raw, undefined, { "content-type": "application/x-www-form-urlencoded", "x-slack-request-timestamp": ts, "x-slack-signature": "v0=" + hmac("slack-secret", `v0:${ts}:${raw}`, "hex") });
+  };
+  assert.match((await slack(`link ${sl.linkCode}`)).j.text, /Linked/);
+  assert.match((await slack("risk Sponsor contract is not signed yet because legal is slow")).j.text, /Logged risk/);
+  assert.equal((await call("POST", "/api/hooks/slack", "text=risk+x", undefined, { "content-type": "application/x-www-form-urlencoded", "x-slack-request-timestamp": "1", "x-slack-signature": "v0=00" })).status, 401);
 
   // ---- capture inbox: Lead-tagged items are hidden from Members; only leads triage
   const inboxLead = (await call("GET", `/api/orgs/${org.id}/capture?status=new`, undefined, lead.token)).j.events;
-  assert.deepEqual(inboxLead.map((e: any) => e.source).sort(), ["discord", "github"]);
+  assert.deepEqual(inboxLead.map((e: any) => e.source).sort(), ["discord", "github", "slack"]);
   const inboxMember = (await call("GET", `/api/orgs/${org.id}/capture`, undefined, member.token)).j.events;
   assert.deepEqual(inboxMember.map((e: any) => e.source), ["github"]);
   assert.equal((await call("GET", `/api/orgs/${org.id}/capture`, undefined, outsider.token)).status, 403);
@@ -386,7 +397,7 @@ test("workspace API: accounts, invitations, roles, projects, publishing, signed 
   assert.equal(ghEvent.projectId, p.id);
   assert.equal((await call("POST", `/api/orgs/${org.id}/capture/update`, { ids: [ghEvent.id], status: "added" }, member.token)).status, 403);
   assert.equal((await call("POST", `/api/orgs/${org.id}/capture/update`, { ids: [ghEvent.id], status: "added", projectId: p.id }, lead.token)).j.updated, 1);
-  assert.equal((await call("GET", `/api/orgs/${org.id}/capture?status=new`, undefined, lead.token)).j.events.length, 1);
+  assert.equal((await call("GET", `/api/orgs/${org.id}/capture?status=new`, undefined, lead.token)).j.events.length, 2);
 
   // ---- removing a member ends their access immediately
   await call("DELETE", `/api/orgs/${org.id}/members/${member.id}`, undefined, owner.token);

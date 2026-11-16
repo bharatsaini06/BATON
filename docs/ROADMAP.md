@@ -1,6 +1,6 @@
 # Baton — product roadmap
 
-Baton today covers one handover end to end: capture, reconstruction, verification, Gap Interview, review, a role-safe package, Ask Baton, workspaces with roles, and live capture from Discord and GitHub. The roadmap below keeps the same rule that makes Baton trustworthy: **a statement is only as strong as the source it can point to**, and the successor never receives what their role may not see.
+Baton today covers one handover end to end: capture, reconstruction, verification, Gap Interview, review, a role-safe package, Ask Baton, workspaces with roles, and live capture from Discord, Slack and GitHub. The roadmap below keeps the same rule that makes Baton trustworthy: **a statement is only as strong as the source it can point to**, and the successor never receives what their role may not see.
 
 ## Who it is for first
 
@@ -23,7 +23,7 @@ College clubs, student startups and hackathon teams, where people leave every se
 |---|---|
 | Knowledge-risk view: work, accounts and decisions that only one person can explain | Shows the gap while the person is still around |
 | Weekly capture reminders in Discord | Keeps the work log alive without extra meetings |
-| Slack and Microsoft Teams as proper OAuth apps with channel-scoped history | Brings back Slack (removed from Round 3 because it could not be verified live) with history, not only commands |
+| Microsoft Teams, and channel-scoped OAuth for Slack and Discord history | Today Slack and Discord capture /baton commands; OAuth adds past messages from chosen channels |
 | Jira, Linear and Trello live sync | Task ownership changes arrive without exports |
 | Encrypted sync for Private sources | Private notes are device-only today |
 

@@ -55,3 +55,8 @@ export function verifyGithub(secret: string, rawBody: string, header: string | u
   return safeEqual(header, "sha256=" + hmac(secret, rawBody, "hex"));
 }
 
+/** Slack requests: v0=HMAC-SHA256(signing secret, "v0:timestamp:body"); rejects requests older than 5 minutes. */
+export function verifySlack(secret: string, timestamp: string | undefined, rawBody: string, signature: string | undefined, now = Date.now()): boolean {
+  if (!timestamp || !signature || Math.abs(now / 1000 - Number(timestamp)) > 300) return false;
+  return safeEqual(signature, "v0=" + hmac(secret, `v0:${timestamp}:${rawBody}`, "hex"));
+}
