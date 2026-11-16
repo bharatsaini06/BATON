@@ -221,8 +221,8 @@ The full plan is in [docs/ROADMAP.md](docs/ROADMAP.md). In short:
 
 | Name | Role |
 |---|---|
-| Bharat Saini (team lead) | Backend |
-| Chitransh Nagar | AI / ML |
+|  Chitransh Nagar(team lead) | AI / ML |
+| Bharat Saini | Backend |
 | Bhavishay Jhalani | Frontend |
 | Dhaksh Sharma | Research |
 
