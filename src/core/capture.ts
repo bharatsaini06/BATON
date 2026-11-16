@@ -1,4 +1,4 @@
-// Live capture. Turns chat commands (Discord / Slack) and GitHub webhook events into structured
+// Live capture. Turns chat commands (Discord) and GitHub webhook events into structured
 // knowledge items, redacted on arrival. Captured items land in a workspace inbox and become
 // work-log evidence when a project owner adds them.
 import type { AccessTag, CaptureEvent, CaptureSource, LogEntry, LogKind } from "./types";
@@ -91,7 +91,7 @@ export function makeEvent(base: { orgId: string; connectorId: string; source: Ca
   return { event, redactions: n };
 }
 
-const SOURCE_LABEL: Record<CaptureSource, string> = { discord: "Discord", slack: "Slack", github: "GitHub" };
+const SOURCE_LABEL: Record<CaptureSource, string> = { discord: "Discord", github: "GitHub" };
 export const captureLabel = (s: CaptureSource) => SOURCE_LABEL[s];
 
 /** A captured item becomes an ordinary work-log entry, so it flows through the same gate, extraction and verification. */

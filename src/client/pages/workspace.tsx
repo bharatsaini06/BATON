@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { LuUsers, LuPlug, LuInbox, LuCopy, LuTrash2, LuUserPlus, LuGithub, LuSlack, LuMessagesSquare, LuCheck, LuClock, LuPlus, LuBuilding2, LuExternalLink, LuSend, LuBot, LuLogOut, LuBan } from "react-icons/lu";
+import { LuUsers, LuPlug, LuInbox, LuCopy, LuTrash2, LuUserPlus, LuGithub, LuMessagesSquare, LuCheck, LuClock, LuPlus, LuBuilding2, LuExternalLink, LuSend, LuBot, LuLogOut, LuBan } from "react-icons/lu";
 import type { AccessTag, CaptureEvent, CaptureSource, OrgRole } from "../../core/types";
 import { ORG_ROLE_LABEL } from "../../core/types";
 import { captureLabel } from "../../core/capture";
@@ -15,7 +15,7 @@ import { AccessBadge, Button, Callout, Card, Empty, Field, Modal, Segmented, Spi
 type Tab = "members" | "connectors" | "capture" | "handovers";
 
 export function SourceMark({ source }: { source: CaptureSource }) {
-  const I = source === "github" ? LuGithub : source === "slack" ? LuSlack : LuMessagesSquare;
+  const I = source === "github" ? LuGithub : LuMessagesSquare;
   return <span className={cx("src-mark", `src-mark-${source}`)} title={captureLabel(source)}><I aria-hidden /></span>;
 }
 
@@ -195,7 +195,6 @@ function MembersTab({ orgId, role, meId }: { orgId: string; role: OrgRole; meId:
 
 const KIND_INFO: Record<CaptureSource, { title: string; blurb: string }> = {
   discord: { title: "Discord", blurb: "Team members type /baton decision … in your server; it lands here in seconds." },
-  slack: { title: "Slack", blurb: "The same /baton command for Slack workspaces." },
   github: { title: "GitHub webhook", blurb: "Issue assignments, merged pull requests and “Decision:” / “Risk:” lines are captured automatically." },
 };
 
@@ -239,13 +238,13 @@ function ConnectorsTab({ orgId }: { orgId: string }) {
     <div className="stack">
       <p className="muted">Connectors capture knowledge <b>while the work is happening</b>, so a handover is nearly ready before anyone leaves. Every request is verified by signature, secrets are redacted on arrival, and each item carries an access tag.</p>
       <div className="connector-grid">
-        {(["discord", "github", "slack"] as CaptureSource[]).map((k) => {
-          const ready = k === "github" ? true : k === "discord" ? !!c?.discord : !!c?.slack;
+        {(["discord", "github"] as CaptureSource[]).map((k) => {
+          const ready = k === "github" ? true : !!c?.discord;
           return (
             <Card key={k} className="connector-card">
               <div className="row gap"><SourceMark source={k} /><h3>{KIND_INFO[k].title}</h3></div>
               <p className="muted small">{KIND_INFO[k].blurb}</p>
-              {!ready && <p className="xsmall warn-text">Not enabled on this server: set {k === "discord" ? "DISCORD_PUBLIC_KEY" : "SLACK_SIGNING_SECRET"} (see docs/CONNECTORS.md).</p>}
+              {!ready && <p className="xsmall warn-text">Not enabled on this server: set DISCORD_PUBLIC_KEY (see docs/CONNECTORS.md).</p>}
               <Button size="sm" icon={<LuPlus />} onClick={() => setAdding(k)}>Add {KIND_INFO[k].title}</Button>
             </Card>
           );
@@ -272,10 +271,10 @@ function ConnectorsTab({ orgId }: { orgId: string }) {
             </ol>
           ) : (
             <ol className="setup-steps">
-              <li>{x.kind === "discord" ? <>In the Discord Developer Portal open your app → <b>General Information</b> and set the Interactions Endpoint URL:</> : <>In your Slack app create a slash command <code>/baton</code> with this Request URL:</>}<CopyRow label="Endpoint URL" value={x.endpointUrl!} /></li>
+              <li>In the Discord Developer Portal open your app → <b>General Information</b> and set the Interactions Endpoint URL:<CopyRow label="Endpoint URL" value={x.endpointUrl!} /></li>
               {x.kind === "discord" && <li>Register the <code>/baton</code> command: <Button size="sm" icon={<LuBot />} disabled={!c?.discordCanRegister} onClick={register}>Register command</Button>{!c?.discordCanRegister && <span className="muted xsmall"> needs DISCORD_APP_ID and DISCORD_BOT_TOKEN on the server</span>}</li>}
               {x.kind === "discord" && <li>Add the app to your server: {c?.discordAppId ? <a href={`https://discord.com/oauth2/authorize?client_id=${c.discordAppId}&scope=applications.commands`} target="_blank" rel="noreferrer">open the install link <LuExternalLink aria-hidden /></a> : <span className="muted">install link appears once DISCORD_APP_ID is set</span>}</li>}
-              <li>{x.kind === "discord" ? <>In the server type <code>/baton link</code> and paste this code:</> : <>In Slack run this once:</>}<CopyRow label={x.kind === "discord" ? "Code" : "Command"} value={x.kind === "discord" ? x.linkCode! : `/baton link ${x.linkCode}`} /></li>
+              <li>In the server type <code>/baton link</code> and paste this code:<CopyRow label="Code" value={x.linkCode!} /></li>
               <li>Then log knowledge any time: <code>/baton decision</code>, <code>/baton risk</code>, <code>/baton task</code>, <code>/baton owner</code>, <code>/baton note</code>.</li>
             </ol>
           )}
@@ -328,7 +327,7 @@ function CaptureTab({ orgId, role }: { orgId: string; role: OrgRole }) {
         <h2 className="card-title"><LuInbox aria-hidden /> Captured as it happened</h2>
         <Segmented label="Filter" value={filter} onChange={setFilter} options={[{ value: "new", label: "New" }, { value: "all", label: "All" }]} />
       </div>
-      <p className="muted small">Items logged from Discord, Slack and GitHub. Open a project's <b>Sources → Live capture</b> to turn them into evidence for a handover. This list refreshes on its own.{role === "member" ? " As a Member you see Member-tagged items only." : ""}</p>
+      <p className="muted small">Items logged from Discord and GitHub. Open a project's <b>Sources → Live capture</b> to turn them into evidence for a handover. This list refreshes on its own.{role === "member" ? " As a Member you see Member-tagged items only." : ""}</p>
       {!events ? <Spinner label="Loading…" /> : !events.length ? <Empty icon={<LuInbox />} title={filter === "new" ? "Nothing new" : "Nothing captured yet"}>Link a connector, then try <code>/baton decision Use Razorpay because UPI is a must</code> in Discord.</Empty> : (
         <div className="capture-list">
           {events.map((e) => <CaptureItem key={e.id} e={e} actions={role !== "member" && e.status === "new" ? <Button size="sm" variant="ghost" icon={<LuBan />} onClick={async () => { try { await api.captureUpdate(orgId, [e.id], "dismissed"); await load(); } catch (err) { toast("danger", (err as Error).message); } }}>Dismiss</Button> : undefined} />)}

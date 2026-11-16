@@ -29,7 +29,7 @@ node tests/e2e-round3.mjs             # 32 browser checks of accounts, connector
 |---|---|
 | Ask Baton | answers with citations; "not in the handover" when nothing approved covers the question; never presents a conflict or gap as settled; a Member's answer cannot contain Lead-only facts; model sentences kept only when the cited facts support them; invented wording falls back to approved facts; injected instructions inside a fact are inert |
 | Live capture | command parsing; GitHub events to ownership / task / decision items; secrets redacted on arrival; captured items become work-log evidence and verified claims |
-| Signatures | Discord Ed25519, GitHub HMAC-SHA256, Slack signing secret — changed body, wrong secret and unknown connector are rejected |
+| Signatures | Discord Ed25519, GitHub HMAC-SHA256 — changed body, wrong secret and unknown connector are rejected |
 | Accounts and roles | sign-up, sign-in, invitations, role changes, removal; a Member cannot list or open projects, add connectors or create links; a Lead cannot change roles |
 | Row-Level Security | run as real database roles on PostgreSQL: outsiders see nothing; Members see only Member handovers and Member-tagged captured items; removed members lose access; nobody can raise their own role |
 | Signed links | open, altered signature refused, link for another handover refused, expired link refused, forged link with another secret refused, revoked link refused, opens counted |
@@ -37,7 +37,7 @@ node tests/e2e-round3.mjs             # 32 browser checks of accounts, connector
 
 ### Not tested live from the build environment
 
-The build environment has no outbound network, so these were tested against local stand-ins and must be confirmed on the deployed site with the checklist in `docs/CONNECTORS.md`: Supabase Auth and PostgREST (adapter tested against a mock; the SQL policies were run on a real PostgreSQL 16), Discord's and GitHub's real requests (tested with correctly signed requests built the same way), Slack (same), and live AI providers (**Test AI** button).
+The build environment has no outbound network, so these were tested against local stand-ins and must be confirmed on the deployed site with the checklist in `docs/CONNECTORS.md`: Supabase Auth and PostgREST (adapter tested against a mock; the SQL policies were run on a real PostgreSQL 16), Discord's and GitHub's real requests (tested with correctly signed requests built the same way), and live AI providers (**Test AI** button).
 
 ## Results (Round 2 build)
 

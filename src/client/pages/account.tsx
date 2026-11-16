@@ -54,7 +54,7 @@ export function AccountPage() {
         <ul className="auth-points">
           <li><LuShield aria-hidden /><div><b>Roles per person.</b> Members open only handovers filtered for Members; Leads and Owners manage projects.{health?.accounts?.rls ? " Enforced in the database with Row-Level Security." : ""}</div></li>
           <li><LuLink aria-hidden /><div><b>Signed share links.</b> Each link can expire and be revoked; approvals and acknowledgements carry a real name.</div></li>
-          <li><LuRadio aria-hidden /><div><b>Live capture.</b> Decisions logged from Discord, Slack and GitHub arrive in the workspace as they happen.</div></li>
+          <li><LuRadio aria-hidden /><div><b>Live capture.</b> Decisions logged from Discord and GitHub arrive in the workspace as they happen.</div></li>
         </ul>
       </div>
       <Card className="auth-card">

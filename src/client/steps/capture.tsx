@@ -10,7 +10,7 @@ import { CaptureItem } from "../pages/workspace";
 import { WorkspaceChip } from "../components/workspace-chip";
 import { Button, Callout, Empty, Spinner, useToast } from "../ui";
 
-/** Sources → Live capture: items that arrived from Discord, Slack or GitHub become work-log evidence. */
+/** Sources → Live capture: items that arrived from Discord or GitHub become work-log evidence. */
 export function CapturePanel() {
   const { project, update } = useProject();
   const { user, org, canEdit } = useSession();
@@ -21,7 +21,7 @@ export function CapturePanel() {
   const load = useCallback(() => (orgId && user ? api.capture(orgId, { status: "new", project: project.id }).then((r) => setEvents(r.events)).catch(() => setEvents([])) : Promise.resolve()), [orgId, user, project.id]);
   useEffect(() => { void load(); const t = setInterval(load, 8000); return () => clearInterval(t); }, [load]);
 
-  if (!user) return <Callout tone="info" title="Live capture needs a workspace" action={<Link to={`/account?next=${encodeURIComponent(location.pathname)}`} className="btn btn-primary btn-sm"><span>Sign in</span></Link>}>Sign in, save this project to a workspace, and connect Discord, Slack or a GitHub webhook. Decisions logged there arrive here as they happen.</Callout>;
+  if (!user) return <Callout tone="info" title="Live capture needs a workspace" action={<Link to={`/account?next=${encodeURIComponent(location.pathname)}`} className="btn btn-primary btn-sm"><span>Sign in</span></Link>}>Sign in, save this project to a workspace, and connect Discord or a GitHub webhook. Decisions logged there arrive here as they happen.</Callout>;
   if (!orgId) return <Callout tone="info" title="Save this project to a workspace first" action={<WorkspaceChip project={project} />}>Captured items belong to a workspace{org ? "" : " — create one under Workspace"}. Private sources never leave this browser.</Callout>;
 
   const add = async (list: CaptureEvent[]) => {
@@ -44,7 +44,7 @@ export function CapturePanel() {
 
   return (
     <div className="stack">
-      <p className="muted small"><LuRadio aria-hidden /> Knowledge captured <b>as it happened</b> in Discord, Slack and GitHub. Adding an item puts it in the work log, so it passes the same permission gate, extraction and quote check as every other source.</p>
+      <p className="muted small"><LuRadio aria-hidden /> Knowledge captured <b>as it happened</b> in Discord and GitHub. Adding an item puts it in the work log, so it passes the same permission gate, extraction and quote check as every other source.</p>
       {!events ? <Spinner label="Checking the inbox…" /> : !events.length ? (
         <Empty icon={<LuPlug />} title="No new captured items">
           <span>Connect a source under <Link to="/workspace">Workspace → Live connectors</Link>, then log something — for example <code>/baton decision …</code> in Discord.</span>

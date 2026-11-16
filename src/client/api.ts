@@ -51,7 +51,7 @@ export interface Health {
   storage: { mode: string; durable: boolean };
   github: { token: boolean };
   accounts?: { mode: "supabase" | "builtin"; rls: boolean; serviceKey: boolean };
-  connectors?: { discord: boolean; discordAppId: string | null; discordCanRegister: boolean; slack: boolean };
+  connectors?: { discord: boolean; discordAppId: string | null; discordCanRegister: boolean };
 }
 
 export interface Member { userId: string; name: string; email: string; role: OrgRole; joinedAt: string }

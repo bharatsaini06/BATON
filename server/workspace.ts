@@ -1,11 +1,11 @@
-// Round 3 API: accounts and workspaces, signed share links, live connectors (Discord, Slack, GitHub
+// Round 3 API: accounts and workspaces, signed share links, live connectors (Discord, GitHub
 // webhook), the capture inbox and Ask Baton. See server/db.ts for how access is enforced.
 import { z } from "zod";
 import { HttpError, json, limit, parse, type Ctx, type Route } from "./http";
 import { getBackend, getSecret, supabaseConfig, type Row, type User } from "./db";
 import { getStore } from "./storage";
 import { aiConfig, makeCallModel } from "./ai";
-import { randomId, signToken, uuid, verifyDiscord, verifyGithub, verifySlack, verifyToken } from "./crypto";
+import { randomId, signToken, uuid, verifyDiscord, verifyGithub, verifyToken } from "./crypto";
 import { buildPackage } from "../src/core/plan";
 import { ask } from "../src/core/ask";
 import { fromGithub, makeEvent, parseCommand, type ParsedItem } from "../src/core/capture";
@@ -20,7 +20,7 @@ const AccessZ = z.enum(["member", "lead"]);
 export function workspaceHealth() {
   return {
     accounts: { mode: getBackend().db.mode, rls: getBackend().db.mode === "supabase", serviceKey: getBackend().db.mode === "builtin" || !!supabaseConfig()?.service },
-    connectors: { discord: !!process.env.DISCORD_PUBLIC_KEY, discordAppId: (process.env.DISCORD_APP_ID || process.env.DISCORD_APPLICATION_ID) || null, discordCanRegister: !!((process.env.DISCORD_APP_ID || process.env.DISCORD_APPLICATION_ID) && process.env.DISCORD_BOT_TOKEN), slack: !!process.env.SLACK_SIGNING_SECRET },
+    connectors: { discord: !!process.env.DISCORD_PUBLIC_KEY, discordAppId: (process.env.DISCORD_APP_ID || process.env.DISCORD_APPLICATION_ID) || null, discordCanRegister: !!((process.env.DISCORD_APP_ID || process.env.DISCORD_APPLICATION_ID) && process.env.DISCORD_BOT_TOKEN) },
     signedLinks: true,
   };
 }
@@ -148,7 +148,7 @@ const KIND_WORD: Record<string, string> = { decision: "decision", risk: "risk", 
 const confirm = (e: CaptureEvent) => `Logged ${KIND_WORD[e.kind]}: “${e.text}”${e.why ? ` — ${e.why}` : ""}${e.owner ? ` · owner ${e.owner}` : ""}${e.due ? ` · due ${e.due}` : ""} · visible to ${e.access === "lead" ? "Leads only" : "Members"}. It is now in Baton's capture inbox.`;
 const HELP = "Try: `decision Use Razorpay because fees are lower` · `risk Domain expires in March @riya` · `task Fix the webhook @arjun due 2026-12-01` · `owner payments -> Riya` · `note …`";
 
-async function linkChat(kind: "discord" | "slack", code: string, externalId: string, label: string): Promise<string> {
+async function linkChat(kind: "discord", code: string, externalId: string, label: string): Promise<string> {
   const { db } = getBackend();
   const [conn] = await db.select("connectors", { kind, secret: code.trim().toUpperCase() });
   if (!conn) return "That link code was not found. In Baton open Workspace → Connectors, add a connector and copy its code.";
@@ -184,7 +184,7 @@ const InviteBody = z.object({ email: Email, role: OrgRoleZ });
 const ProjectBody = z.object({ orgId: z.string().max(80), project: z.any() });
 const PublishBody = z.object({ project: z.any(), previous: z.any().optional() });
 const LinkBody = z.object({ days: z.number().int().min(1).max(365).nullable(), label: z.string().trim().max(80).optional() });
-const ConnectorBody = z.object({ kind: z.enum(["discord", "slack", "github"]), label: z.string().trim().max(80).optional(), projectId: z.string().max(80).optional(), defaultAccess: AccessZ.default("member"), repo: z.string().trim().max(140).optional() });
+const ConnectorBody = z.object({ kind: z.enum(["discord", "github"]), label: z.string().trim().max(80).optional(), projectId: z.string().max(80).optional(), defaultAccess: AccessZ.default("member"), repo: z.string().trim().max(140).optional() });
 const CaptureUpdate = z.object({ ids: z.array(z.string().max(80)).min(1).max(200), status: z.enum(["new", "added", "dismissed"]), projectId: z.string().max(80).optional() });
 const AskBody = z.object({ id: z.string().max(140), question: z.string().trim().min(3).max(500), by: z.string().trim().max(100).optional(), package: z.any().optional() });
 
@@ -509,22 +509,6 @@ export const workspaceRoutes: Route[] = [
     const author = i.member?.nick || i.member?.user?.global_name || i.member?.user?.username || "Discord user";
     const e = await capture(conn, "discord", { ...item, author }, `discord:${i.id}`, o.visibility === "lead" || o.visibility === "member" ? o.visibility : undefined);
     reply(confirm(e) + (sub?.name === "task" && o.due && !e.due ? " (The due date was ignored — use YYYY-MM-DD.)" : ""));
-  }),
-  R("POST", "hooks/slack", async (c) => {
-    const secret = process.env.SLACK_SIGNING_SECRET;
-    if (!secret) throw new HttpError(503, "SLACK_SIGNING_SECRET is not set on the server.");
-    const raw = await c.raw();
-    if (!verifySlack(secret, String(c.req.headers["x-slack-request-timestamp"] || ""), raw, String(c.req.headers["x-slack-signature"] || ""))) throw new HttpError(401, "Bad request signature");
-    const f = new URLSearchParams(raw);
-    const reply = (text: string) => json(c.res, 200, { response_type: "ephemeral", text });
-    const text = (f.get("text") || "").trim(), team = f.get("team_id") || "";
-    const link = /^link\s+(\S+)/i.exec(text);
-    if (link) return reply(await linkChat("slack", link[1], team, f.get("team_domain") || "Slack workspace"));
-    const [conn] = await getBackend().db.select("connectors", { kind: "slack", external_id: team });
-    if (!conn) return reply("This Slack workspace is not linked to Baton yet. In Baton open Workspace → Connectors, add a Slack connector, then run `/baton link <code>`.");
-    const item = parseCommand(text);
-    if (!item) return reply("Nothing to log. " + HELP);
-    reply(confirm(await capture(conn, "slack", { ...item, author: f.get("user_name") || "Slack user" }, `slack:${f.get("trigger_id") || uuid()}`)));
   }),
   R("POST", `hooks/github/${ID}`, async (c) => {
     limit(c.req, "ghhook", 600);

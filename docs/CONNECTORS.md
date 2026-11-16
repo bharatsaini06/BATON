@@ -45,11 +45,7 @@ Each command accepts `visibility: member | lead`. A Lead-only item never reaches
 2. Repository → Settings → Webhooks → Add webhook: paste the Payload URL, content type `application/json`, paste the Secret, choose *Let me select individual events* → Issues, Issue comments, Pull requests, Pushes.
 3. What is captured: an issue opened, assigned, unassigned, closed or reopened; a pull request opened, merged or sent for review; and any line starting with `Decision:`, `Risk:`, `Task:`, `Owner:` or `Note:` in an issue, pull request, comment or commit message.
 
-## 4. Slack (optional)
-
-Create a Slack app with a slash command `/baton` whose Request URL is `https://<your-site>/api/hooks/slack`, set `SLACK_SIGNING_SECRET`, add a Slack connector in Baton and run the `/baton link …` command shown on its card.
-
-## 5. From capture to handover
+## 4. From capture to handover
 
 Captured items appear in Workspace → Capture inbox. In a workspace project open Sources → **Live capture** → *Add to the work log*. From there they are ordinary evidence: permission gate, extraction, quote verification, review and publishing all apply.
 
