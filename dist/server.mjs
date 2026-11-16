@@ -7174,7 +7174,7 @@ function connectorView(r, origin) {
 }
 
 // server/handler.ts
-var VERSION = "2.1.3";
+var VERSION = "2.2.0";
 function securityHeaders(res) {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");

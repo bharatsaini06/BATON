@@ -176,8 +176,10 @@ function UploadPanel({ onAdd }: { onAdd: (s: Source) => Promise<void> }) {
     for (const f of Array.from(files)) {
       setBusy((b) => [...b, f.name]);
       try {
+        if (!f.size) throw new Error(`${f.name} is empty. Choose a file that has text in it.`);
         const rf = await readFile(f);
         const { source } = await api.upload({ ...rf, access, addedBy: project.leaver || undefined });
+        if (!source.chunks.length) throw new Error(`${f.name}: no readable text was found, so nothing was added. If it is a scanned PDF, export it with a text layer.`);
         await onAdd(source);
         toast("success", `${f.name}: ${source.chunks.length} chunks${totalRedactions(source.stats.redactions) ? `, ${totalRedactions(source.stats.redactions)} secrets redacted` : ""}`);
       } catch (e) {

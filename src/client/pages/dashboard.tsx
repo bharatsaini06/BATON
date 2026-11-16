@@ -70,7 +70,7 @@ export function Dashboard() {
           <h1>Projects</h1>
           <p className="muted">Each project collects sources and work-log entries; when someone leaves, Baton builds their handover from it.</p>
         </div>
-        <div className="row gap">
+        <div className="row gap wrap">
           <Button icon={<LuUpload />} onClick={() => fileRef.current?.click()}>Import</Button>
           <input ref={fileRef} type="file" accept=".json" hidden onChange={(e) => e.target.files?.[0] && importJson(e.target.files[0])} />
           <Button icon={<LuPlay />} loading={busy} onClick={async () => { setBusy(true); try { await startSample(toast); } catch (e) { toast("danger", (e as Error).message); } setBusy(false); }}>Load sample</Button>

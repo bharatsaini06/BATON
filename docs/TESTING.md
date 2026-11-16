@@ -35,9 +35,31 @@ node tests/e2e-round3.mjs             # 32 browser checks of accounts, connector
 | Signed links | open, altered signature refused, link for another handover refused, expired link refused, forged link with another secret refused, revoked link refused, opens counted |
 | Browser journey | account → workspace → invite → Discord and GitHub signed calls → inbox → project → publish as account → share link → Ask Baton → acknowledge → revoke → invited Member's view |
 
-### Not tested live from the build environment
+### Judge-style robustness pass (Round 3 build 2.2.0)
 
-The build environment has no outbound network, so these were tested against local stand-ins and must be confirmed on the deployed site with the checklist in `docs/CONNECTORS.md`: Supabase Auth and PostgREST (adapter tested against a mock; the SQL policies were run on a real PostgreSQL 16), Discord's and GitHub's real requests (tested with correctly signed requests built the same way), and live AI providers (**Test AI** button).
+Run on the final build in Chromium, doing what a first-time user might do:
+
+| Action | Result |
+|---|---|
+| Unknown address, broken share link, unknown project, bad invitation link | Clear message and a way back; no blank page |
+| New empty project, then open every step | Each step explains what is missing; *Run reconstruction* stays disabled with no sources |
+| Upload an empty file / an unsupported file type | Refused with the reason; nothing added |
+| Refresh on Sources, Reconstruct, Review, Handover and the successor view | State kept; nothing lost |
+| Double-click *Run reconstruction*, *Approve*, *Approve & publish*, *Acknowledge* | Runs once; one version published |
+| Ask Baton with a blank question / a 300-character question | Button disabled / answered normally |
+| Wrong password; sign-up with empty fields | Clear message / browser asks for the missing fields |
+| Expired sign-in, then open Workspace | Renews or returns to sign-in (was: loaded forever; fixed and covered by a test) |
+| Open *How it works* inside a signed-in workspace | Opens fully on screen with Close (was: clipped; fixed and covered by a test) |
+| A Slack connector saved by an earlier build | Hidden; the page no longer goes blank (fixed) |
+| Landing, Projects and Sign-in at 380 px wide | No sideways scrolling (Projects fixed) |
+
+### Live check on the deployed site
+
+The team ran the main journeys on https://baton-henna.vercel.app with Supabase, Discord, GitHub and Gemini connected: account and workspace, invitation, `/baton` command to the Capture inbox, GitHub webhook to the inbox, publish, signed share link, Ask Baton, revoke.
+
+### How the automated tests reach outside services
+
+The automated suites run without network access, so outside services are replaced by local stand-ins; the live check above confirms them on the deployed site (checklist in `docs/CONNECTORS.md`): Supabase Auth and PostgREST (adapter tested against a mock; the SQL policies were run on a real PostgreSQL 16), Discord's and GitHub's real requests (tested with correctly signed requests built the same way), and live AI providers (**Test AI** button).
 
 ## Results (Round 2 build)
 
@@ -93,7 +115,3 @@ The AI provider adapters were tested against intercepted requests and a mock Ope
 | File over 4 MB, scanned PDF, unsupported type | Clear error message in the UI, nothing stored | Implemented (manual check) |
 | GitHub repo not found / private / rate-limited | Clear message with the reason and the fix | Implemented (manual check; network-dependent) |
 | Sources changed after reconstruction | "Results are out of date" banner on Sources, Reconstruct, Review and Handover | Pass (e2e for role change) |
-
-## Structured feedback
-
-**[Add 3–5 short notes from classmates or club members who tried the deployed link, e.g. "Found the evidence drawer immediately; wanted a way to filter by person." Report only real feedback.]**

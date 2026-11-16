@@ -9,9 +9,16 @@ export function cx(...c: (string | false | null | undefined)[]) {
 }
 
 type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "ghost" | "danger" | "success" | "accent"; size?: "sm" | "md" | "lg"; loading?: boolean; icon?: ReactNode };
-export function Button({ variant = "secondary", size = "md", loading, icon, children, className, disabled, ...rest }: BtnProps) {
+export function Button({ variant = "secondary", size = "md", loading, icon, children, className, disabled, onClick, ...rest }: BtnProps) {
+  // A second click while the first one's work is still running is ignored, so a double-click never publishes twice.
+  const running = useRef(false);
+  const click = onClick && ((e: any) => {
+    if (running.current) { e.preventDefault(); return; }
+    const r: any = (onClick as any)(e);
+    if (r && typeof r.then === "function") { running.current = true; r.finally(() => { running.current = false; }); }
+  });
   return (
-    <button {...rest} disabled={disabled || loading} className={cx("btn", `btn-${variant}`, `btn-${size}`, className)}>
+    <button {...rest} onClick={click} disabled={disabled || loading} className={cx("btn", `btn-${variant}`, `btn-${size}`, className)}>
       {loading ? <LuLoaderCircle className="spin" aria-hidden /> : icon}
       {children && <span>{children}</span>}
     </button>

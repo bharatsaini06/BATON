@@ -1,6 +1,6 @@
 # Baton — evidence-checked project handovers
 
-**When someone leaves, pass on the project — not just the files.**
+**When someone leaves, the project stays.**
 
 Baton reads a project's authorised sources (GitHub, documents, chat exports, task boards and a running work log), turns them into small claims, **checks every claim against its source in code**, asks the person leaving only about the gaps, and gives the successor a role-safe handover with a Day 1 / Week 1 plan once a human approves it.
 
@@ -10,7 +10,8 @@ Built for the **CodersInPune Hackathon 2026** (HackWithPune) — challenge *Prev
 |---|---|
 | Live demo | https://baton-henna.vercel.app |
 | Try it | Open the link → **Try the sample project** → follow the yellow guide on each step (about 3 minutes) |
-| Sign-in | None needed. Demo data is synthetic. |
+| Sign-in | Not needed for the sample. Sign in (free, one minute) to try workspaces, roles, live connectors and signed share links. Demo data is synthetic. |
+| Run it yourself | `git clone` → `node dist/server.mjs` → http://localhost:3000 (Node.js 18.17+, no install needed; see [Run locally](#run-locally)) |
 
 ---
 
@@ -22,7 +23,17 @@ Built for the **CodersInPune Hackathon 2026** (HackWithPune) — challenge *Prev
 | 2 | **Ask Baton — grounded Q&A** | A question box on the successor's handover. Answers are built only from the approved claims in that handover, each sentence carries numbered citations that open the evidence, and code checks every model sentence against the facts it cites (unsupported sentences are removed). When nothing approved covers the question Baton answers **"Not in the handover"** and the question is passed to the reviewer. Because the answer is built from the role-filtered package, withheld material cannot appear. Works with the AI model or, without a key, by showing the matching approved facts. | Successor view → Ask Baton |
 | 3 | **Real accounts and organisation access control** | Sign-up and sign-in, workspaces, invitation links, roles per person (Member / Lead / Owner). Workspace data lives in Postgres with **Row-Level Security** (`supabase/schema.sql`, 48 policy checks on a real PostgreSQL). Share links are signed, can expire, can be revoked, and count opens. Publishing records the signed-in account as approver; acknowledgements, flags and questions carry the account's name. | Sign in → Workspace; Handover step → Signed share links |
 
-Setup for connectors and accounts: [docs/CONNECTORS.md](docs/CONNECTORS.md) and [docs/DEPLOY.md](docs/DEPLOY.md). Submission text: [docs/ROUND3_SUBMISSION.md](docs/ROUND3_SUBMISSION.md).
+**What changed from the Round 2 wording, stated plainly:**
+- *"A Slack/Discord bot"* — the Discord bot is live. A Slack command was also built and passed signed-request tests, but it could not be checked against a live Slack workspace inside the window, so it was **removed before submission** rather than shipped half-verified. Slack export files can still be uploaded as sources.
+- *"Scoped read-only OAuth"* — capture uses signed slash commands and signed webhooks instead of OAuth tokens. This is narrower access than OAuth: Baton receives only the `/baton` commands and the repository events it is sent, never channel history, and stores no third-party token.
+
+### Other work after Round 2
+
+- **Interface redesign** built on the product's own idea: sources look like papers, evidence is a highlighter stroke over the exact quote (green Verified, yellow Inferred, pink Conflicting, dashed Missing), redacted secrets are blacked-out bars, a reviewer decision is a stamp, and the steps are a relay track where the current step holds the baton.
+- **Reliability fixes from testing:** an expired sign-in no longer leaves the workspace loading forever (it renews or returns to sign-in); *How it works* opens fully on screen; a failing page shows a message and a way out instead of a blank screen; a double-click can no longer publish or create twice; empty or unreadable uploads are refused with the reason; the Projects page fits a phone screen.
+- Workspace projects open on any device; identity comes from the account.
+
+Setup for connectors and accounts: [docs/CONNECTORS.md](docs/CONNECTORS.md) and [docs/DEPLOY.md](docs/DEPLOY.md). Submission text: [docs/ROUND3_SUBMISSION.md](docs/ROUND3_SUBMISSION.md). Final product PDF: [docs/Baton_Round3_Final_Product.pdf](docs/Baton_Round3_Final_Product.pdf).
 
 The sample project still works with **no sign-in**, so the three-minute judge path below is unchanged.
 
@@ -142,9 +153,10 @@ Results and failure cases: [docs/TESTING.md](docs/TESTING.md).
 | Parsing | pdf.js (in browser), JSZip (DOCX in browser), custom WhatsApp/Discord/Slack/CSV/Markdown parsers, GitHub REST API | Keeps exact locators (file + line, message time, issue/PR, commit) for citations |
 | Storage | Browser IndexedDB (workspace); Upstash Redis REST or JSON files (published packages) | Local-first privacy; durable share links when configured |
 | Build & test | esbuild, TypeScript, tsx + node:test, Playwright | Fast builds; real-browser tests |
-| Font | Inter (SIL Open Font License) | Readability |
+| Fonts | Inter, Inter Display and Lora bundled; Bricolage Grotesque, Instrument Sans, Newsreader and Caveat from Google Fonts (all SIL Open Font License) | A serif for source text so it is never confused with Baton's own words; bundled fonts are the fallback |
+| Accounts & data | Supabase Auth + Postgres with Row-Level Security (optional; built-in accounts otherwise) | Access enforced in the database |
 
-- **No code existed before the hackathon**; all development happened in the Round 2 window.
+- **No code existed before the hackathon**; all development happened inside the Round 2 and Round 3 windows.
 - **AI assistance:** Claude (Anthropic) was used as a coding and writing assistant during development. The team reviewed and owns all product decisions.
 - **Data:** all demo data is synthetic and invented for this project. No real club, company or personal data is used.
 
@@ -181,8 +193,19 @@ api/index.mjs  Vercel function entry
 dist/          built server bundles (committed)
 public/        built web app, fonts, sample files (committed)
 tests/         unit, provider, end-to-end and AI-path tests
-docs/          architecture, testing, deployment, Round 2 submission text
+supabase/      schema.sql: tables and Row-Level Security policies
+docs/          architecture, testing, deployment, connectors, roadmap, submission text, product PDF
 ```
+
+## Roadmap
+
+The full plan is in [docs/ROADMAP.md](docs/ROADMAP.md). In short:
+
+| When | Focus |
+|---|---|
+| Next 30 days | Pilot with two or three college clubs; password reset and email invitations; OCR for scanned PDFs; Hindi and Hinglish in the rules engine; Google Drive and Notion import |
+| 3 months | Knowledge-risk view (work that only one person can explain), weekly capture reminders, Slack and Microsoft Teams as OAuth apps with channel-scoped history, Jira / Linear / Trello sync |
+| 6 months | Ask across all approved handovers of a workspace, Google Workspace sign-in for colleges, a self-hosted package, and measured outcomes (time to first useful contribution, questions answered vs "not in the handover") |
 
 ## Team ATHRAV
 
